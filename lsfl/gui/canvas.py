@@ -4,7 +4,7 @@ Devre çizim alanı - sürükle-bırak, zoom, pan özellikleri ile
 
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QPoint, QRect, QPointF
-from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QWheelEvent, QMouseEvent, QPainterPath, QPolygonF
+from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QWheelEvent, QMouseEvent, QPainterPath, QPolygonF, QKeyEvent
 
 from core.component import Component
 from core.wire import Wire
@@ -33,15 +33,29 @@ class Canvas(QWidget):
         self.panning = False
         self.pan_start = None
         
+        # Kare seçim aracı
+        self.selecting = False
+        self.selection_start = None
+        self.selection_end = None
+        
+        # Bileşen yerleştirme modu
+        self.placing_component = None
+        self.placing_component_type = None
+        
         # Undo/Redo
         self.undo_stack = []
         self.redo_stack = []
         
         self.setStyleSheet("background-color: #2b2b2b;")
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Simülasyon çalışıyorsa arka plan rengini değiştir
+        if self.circuit.is_running:
+            painter.fillRect(self.rect(), QColor(40, 45, 40))
         
         # Zoom ve offset uygula
         painter.translate(self.offset)
@@ -62,6 +76,19 @@ class Canvas(QWidget):
         # Bileşenleri çiz
         for component in self.circuit.components:
             self.draw_component(painter, component)
+        
+        # Kare seçim alanını çiz
+        if self.selecting and self.selection_start and self.selection_end:
+            painter.setPen(QPen(QColor(100, 150, 255), 2, Qt.PenStyle.DashLine))
+            painter.setBrush(QBrush(QColor(100, 150, 255, 30)))
+            rect = QRect(self.selection_start, self.selection_end).normalized()
+            painter.drawRect(rect)
+        
+        # Yerleştirilecek bileşeni göster
+        if self.placing_component:
+            painter.setOpacity(0.5)
+            self.draw_component(painter, self.placing_component)
+            painter.setOpacity(1.0)
             
     def draw_grid(self, painter):
         painter.setPen(QPen(QColor(60, 60, 60), 1))
@@ -437,10 +464,25 @@ class Canvas(QWidget):
             painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
+        # Simülasyon çalışırken düzenlemeyi engelle
+        if self.circuit.is_running and event.button() != Qt.MouseButton.MiddleButton:
+            return
+        
         # Zoom ve offset'i hesaba kat
         pos = self.map_to_canvas(event.pos())
         
         if event.button() == Qt.MouseButton.LeftButton:
+            # Bileşen yerleştirme modu
+            if self.placing_component:
+                self.placing_component.move(pos.x() - self.placing_component.width // 2,
+                                           pos.y() - self.placing_component.height // 2)
+                self.circuit.add_component(self.placing_component)
+                self.placing_component = None
+                self.placing_component_type = None
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+                self.update()
+                return
+            
             # Pin tıklaması kontrolü (kablo bağlantısı için)
             pin = self.get_pin_at(pos)
             if pin:
@@ -485,11 +527,16 @@ class Canvas(QWidget):
                     else:
                         self.selected_components.append(component)
                 else:
-                    self.selected_components = [component]
+                    if component not in self.selected_components:
+                        self.selected_components = [component]
                     self.dragging_component = component
                 self.update()
             else:
+                # Boş alana tıklama - kare seçim başlat
                 self.selected_components = []
+                self.selecting = True
+                self.selection_start = pos
+                self.selection_end = pos
                 self.update()
                 
         elif event.button() == Qt.MouseButton.MiddleButton:
@@ -499,20 +546,38 @@ class Canvas(QWidget):
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
             
         elif event.button() == Qt.MouseButton.RightButton:
-            # Kablo bağlantısını iptal et
+            # Kablo bağlantısını veya yerleştirmeyi iptal et
             if self.connecting_from:
                 self.connecting_from = None
                 self.temp_wire_end = None
                 self.update()
+            elif self.placing_component:
+                self.cancel_placing()
                 
     def mouseMoveEvent(self, event: QMouseEvent):
         pos = self.map_to_canvas(event.pos())
         
+        # Bileşen yerleştirme modu - önizleme
+        if self.placing_component:
+            self.placing_component.move(pos.x() - self.placing_component.width // 2,
+                                       pos.y() - self.placing_component.height // 2)
+            self.update()
+            return
+        
         if self.dragging_component and self.selected_components:
+            # Simülasyon çalışırken düzenlemeyi engelle
+            if self.circuit.is_running:
+                return
+            
             # Bileşenleri sürükle
             delta = pos - self.dragging_component.get_position()
             for comp in self.selected_components:
                 comp.move(comp.x + delta.x(), comp.y + delta.y())
+            self.update()
+            
+        elif self.selecting and self.selection_start:
+            # Kare seçim alanını güncelle
+            self.selection_end = pos
             self.update()
             
         elif self.panning and self.pan_start:
@@ -530,6 +595,20 @@ class Canvas(QWidget):
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
             self.dragging_component = None
+            
+            # Kare seçim tamamlandı
+            if self.selecting and self.selection_start and self.selection_end:
+                self.selecting = False
+                # Seçim alanındaki bileşenleri bul
+                selection_rect = QRect(self.selection_start, self.selection_end).normalized()
+                self.selected_components = []
+                for component in self.circuit.components:
+                    comp_rect = QRect(component.x, component.y, component.width, component.height)
+                    if selection_rect.intersects(comp_rect):
+                        self.selected_components.append(component)
+                self.selection_start = None
+                self.selection_end = None
+                self.update()
             
         elif event.button() == Qt.MouseButton.MiddleButton:
             self.panning = False
@@ -581,11 +660,35 @@ class Canvas(QWidget):
                     return pin
         return None
         
-    def add_component(self, component_type, pos):
-        """Yeni bileşen ekle"""
+    def add_component(self, component_type, pos=None):
+        """Yeni bileşen ekle - yerleştirme moduna geç"""
         from core.component_factory import ComponentFactory
-        component = ComponentFactory.create(component_type, pos.x(), pos.y())
-        self.circuit.add_component(component)
+        
+        if pos:
+            # Doğrudan pozisyonda oluştur (eski davranış)
+            component = ComponentFactory.create(component_type, pos.x(), pos.y())
+            self.circuit.add_component(component)
+            self.update()
+        else:
+            # Yerleştirme moduna geç
+            self.placing_component = ComponentFactory.create(component_type, 0, 0)
+            self.placing_component_type = component_type
+            self.setCursor(Qt.CursorShape.CrossCursor)
+            self.update()
+    
+    def start_placing_component(self, component_type):
+        """Bileşen yerleştirme modunu başlat"""
+        from core.component_factory import ComponentFactory
+        self.placing_component = ComponentFactory.create(component_type, 0, 0)
+        self.placing_component_type = component_type
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self.update()
+    
+    def cancel_placing(self):
+        """Bileşen yerleştirmeyi iptal et"""
+        self.placing_component = None
+        self.placing_component_type = None
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self.update()
         
     def delete_selected(self):
@@ -616,6 +719,25 @@ class Canvas(QWidget):
         self.clear()
         self.update()
         
+    def keyPressEvent(self, event: QKeyEvent):
+        """Klavye olaylarını işle"""
+        if event.key() == Qt.Key.Key_Escape:
+            # ESC ile yerleştirme veya kablo bağlantısını iptal et
+            if self.placing_component:
+                self.cancel_placing()
+            elif self.connecting_from:
+                self.connecting_from = None
+                self.temp_wire_end = None
+                self.update()
+            elif self.selected_components:
+                self.selected_components = []
+                self.update()
+        elif event.key() == Qt.Key.Key_Delete:
+            # Delete ile seçili bileşenleri sil
+            if not self.circuit.is_running:
+                self.delete_selected()
+        super().keyPressEvent(event)
+    
     def export_png(self, filename):
         pixmap = self.grab()
         pixmap.save(filename)

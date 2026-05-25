@@ -243,11 +243,15 @@ class MainWindow(QMainWindow):
         if self.circuit.is_running:
             self.circuit.stop_simulation()
             self.sim_action.setText("▶ Simülasyon Başlat")
-            self.statusBar.showMessage("Simülasyon durduruldu")
+            self.statusBar.showMessage("Simülasyon durduruldu - Düzenleme aktif")
+            # Yerleştirme modunu iptal et
+            self.canvas.cancel_placing()
         else:
+            # Yerleştirme modunu iptal et
+            self.canvas.cancel_placing()
             self.circuit.start_simulation()
             self.sim_action.setText("⏸ Simülasyon Durdur")
-            self.statusBar.showMessage("Simülasyon çalışıyor")
+            self.statusBar.showMessage("Simülasyon çalışıyor - Düzenleme devre dışı")
         self.canvas.update()
         
     def reset_simulation(self):

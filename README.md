@@ -53,8 +53,11 @@ python lsfl/main.py
 - `Ctrl+A`: Tümünü seç
 - `Ctrl+Scroll`: Zoom in/out
 - `Orta Fare Tuşu`: Pan (kaydırma)
-- `Sol Tık`: Bileşen seç / Pin'den kablo çek
-- `Sağ Tık`: Kablo bağlantısını iptal et
+- `Sol Tık`: Bileşen yerleştir / Bileşen seç / Pin'den kablo çek
+- `Sağ Tık`: İptal (yerleştirme/kablo)
+- `Sürükle`: Bileşen taşı veya kare seçim
+- `Ctrl+Tık`: Çoklu seçim
+- `Esc`: Yerleştirme modundan çık
 
 ## Bileşenler
 
@@ -91,12 +94,27 @@ python lsfl/main.py
 
 ## Kullanım İpuçları
 
+### Temel İşlemler
+- **Bileşen Ekleme**: Sol panelden bileşene tıklayın, ardından canvas'ta istediğiniz yere tıklayın
+- **Bileşen Taşıma**: Bileşene tıklayıp sürükleyin
+- **Çoklu Seçim**: Boş alandan sürükleyerek kare oluşturun veya `Ctrl + Tık` ile tek tek seçin
+- **Kablo Bağlama**: Bir pin'e tıklayın, ardından hedef pin'e tıklayın
+- **İptal**: Sağ tık ile yerleştirme veya kablo bağlantısını iptal edin
+
+### Görünüm Kontrolleri
 - **Zoom**: `Ctrl + Mouse Wheel` ile yakınlaştırma/uzaklaştırma
 - **Pan**: Orta fare tuşu ile sürükleyerek haritada gezinme
-- **Kablo Bağlama**: Herhangi bir pin'e tıklayın, ardından hedef pin'e tıklayın
+- **Grid**: Hassas yerleştirme için 20px grid sistemi
+
+### Simülasyon
 - **Input Test**: Input Pin veya Switch'e tıklayarak ON/OFF yapabilirsiniz
-- **Bileşen Ekleme**: Sol panelden bileşene tıklayın, görünür alanda ortaya eklenir
+- **Simülasyon Modu**: Simülasyon çalışırken düzenleme yapılamaz
+- **Gerçek Zamanlı**: Değişiklikler anında görünür
+
+### Profesyonel Özellikler
 - **IEEE Semboller**: Mantık kapıları IEEE standart sembollerle gösterilir
+- **Kare Seçim**: Büyük devrelerde toplu işlem için
+- **Akıllı Kablo Yönlendirme**: Proteus tarzı ortogonal kablolama
 
 ## Verilog Export
 
