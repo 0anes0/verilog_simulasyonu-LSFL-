@@ -286,9 +286,9 @@ class Canvas(QWidget):
         
         # Üçgen şekli (sağa bakan ok)
         points = [
-            QPoint(component.x, component.y),
-            QPoint(component.x, component.y + component.height),
-            QPoint(component.x + component.width, component.y + component.height // 2)
+            QPointF(component.x, component.y),
+            QPointF(component.x, component.y + component.height),
+            QPointF(component.x + component.width, component.y + component.height // 2)
         ]
         painter.drawPolygon(QPolygonF(points))
         
@@ -320,9 +320,9 @@ class Canvas(QWidget):
         
         # Üçgen şekli (sola bakan ok)
         points = [
-            QPoint(component.x + component.width, component.y),
-            QPoint(component.x + component.width, component.y + component.height),
-            QPoint(component.x, component.y + component.height // 2)
+            QPointF(component.x + component.width, component.y),
+            QPointF(component.x + component.width, component.y + component.height),
+            QPointF(component.x, component.y + component.height // 2)
         ]
         painter.drawPolygon(QPolygonF(points))
         
