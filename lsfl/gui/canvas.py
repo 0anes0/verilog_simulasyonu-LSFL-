@@ -14,7 +14,8 @@ class Canvas(QWidget):
     def __init__(self, circuit):
         super().__init__()
         self.circuit = circuit
-        self.setMinimumSize(2000, 2000)
+        # Daha büyük çalışma alanı
+        self.setFixedSize(3000, 3000)
         self.setMouseTracking(True)
         
         # Görünüm ayarları
@@ -76,6 +77,14 @@ class Canvas(QWidget):
             y += self.grid_size
             
     def draw_component(self, painter, component):
+        # Özel bileşen çizimleri
+        if component.type == "SWITCH":
+            self.draw_switch(painter, component)
+            return
+        elif component.type == "LED":
+            self.draw_led(painter, component)
+            return
+            
         # Seçili bileşenleri vurgula
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 3))
@@ -94,9 +103,63 @@ class Canvas(QWidget):
         
         # Pinleri çiz
         self.draw_pins(painter, component)
+    
+    def draw_switch(self, painter, component):
+        """Switch bileşenini özel çiz"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Switch durumuna göre renk
+        if component.state:
+            painter.setBrush(QBrush(QColor(100, 200, 100)))
+        else:
+            painter.setBrush(QBrush(QColor(80, 80, 80)))
+        
+        painter.drawRoundedRect(rect, 5, 5)
+        
+        # Switch metni
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        status = "ON" if component.state else "OFF"
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, f"Switch\n{status}")
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_led(self, painter, component):
+        """LED bileşenini özel çiz"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # LED durumuna göre renk
+        if len(component.input_pins) > 0 and component.input_pins[0].value:
+            painter.setBrush(QBrush(QColor(255, 100, 100)))
+        else:
+            painter.setBrush(QBrush(QColor(60, 30, 30)))
+        
+        # Daire şeklinde LED
+        center = rect.center()
+        radius = min(component.width, component.height) // 2 - 5
+        painter.drawEllipse(center, radius, radius)
+        
+        # LED metni
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "LED")
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
         
     def draw_pins(self, painter, component):
-        pin_radius = 5
+        pin_radius = 6  # Biraz daha büyük pinler
         
         # Giriş pinleri (sol taraf)
         for i, pin in enumerate(component.input_pins):
@@ -105,15 +168,16 @@ class Canvas(QWidget):
             # Pin durumuna göre renk
             if pin.value:
                 painter.setBrush(QBrush(QColor(100, 255, 100)))
+                painter.setPen(QPen(QColor(50, 200, 50), 2))
             else:
                 painter.setBrush(QBrush(QColor(50, 50, 50)))
+                painter.setPen(QPen(QColor(150, 150, 150), 2))
                 
-            painter.setPen(QPen(QColor(200, 200, 200), 2))
             painter.drawEllipse(QPoint(component.x, y), pin_radius, pin_radius)
             
-            # Pin etiketi
-            painter.setPen(QPen(QColor(200, 200, 200)))
-            painter.drawText(component.x + 10, y + 5, pin.name)
+            # Pin etiketi - daha iyi konumlandırma
+            painter.setPen(QPen(QColor(220, 220, 220)))
+            painter.drawText(component.x + 12, y + 4, pin.name)
         
         # Çıkış pinleri (sağ taraf)
         for i, pin in enumerate(component.output_pins):
@@ -121,15 +185,17 @@ class Canvas(QWidget):
             
             if pin.value:
                 painter.setBrush(QBrush(QColor(100, 255, 100)))
+                painter.setPen(QPen(QColor(50, 200, 50), 2))
             else:
                 painter.setBrush(QBrush(QColor(50, 50, 50)))
+                painter.setPen(QPen(QColor(150, 150, 150), 2))
                 
-            painter.setPen(QPen(QColor(200, 200, 200), 2))
             painter.drawEllipse(QPoint(component.x + component.width, y), pin_radius, pin_radius)
             
-            # Pin etiketi
-            painter.setPen(QPen(QColor(200, 200, 200)))
-            painter.drawText(component.x + component.width - 30, y + 5, pin.name)
+            # Pin etiketi - sağa hizalı
+            painter.setPen(QPen(QColor(220, 220, 220)))
+            text_width = painter.fontMetrics().horizontalAdvance(pin.name)
+            painter.drawText(component.x + component.width - text_width - 12, y + 4, pin.name)
             
     def draw_wire(self, painter, wire):
         # Kablo değerine göre renk
@@ -142,17 +208,56 @@ class Canvas(QWidget):
         start = wire.from_pin.get_position()
         end = wire.to_pin.get_position()
         
-        # Manhattan yönlendirme (dik açılı kablolar)
-        mid_x = (start.x() + end.x()) // 2
+        # Proteus tarzı ortogonal kablo yönlendirmesi
+        # Yatay mesafe
+        dx = end.x() - start.x()
+        dy = end.y() - start.y()
         
-        painter.drawLine(start.x(), start.y(), mid_x, start.y())
-        painter.drawLine(mid_x, start.y(), mid_x, end.y())
-        painter.drawLine(mid_x, end.y(), end.x(), end.y())
+        # Minimum segment uzunluğu
+        min_segment = 30
+        
+        if abs(dx) > abs(dy):
+            # Yatay öncelikli
+            mid_x = start.x() + dx // 2
+            
+            # İlk yatay segment
+            painter.drawLine(start.x(), start.y(), mid_x, start.y())
+            # Dikey segment
+            painter.drawLine(mid_x, start.y(), mid_x, end.y())
+            # Son yatay segment
+            painter.drawLine(mid_x, end.y(), end.x(), end.y())
+        else:
+            # Dikey öncelikli
+            mid_y = start.y() + dy // 2
+            
+            # İlk dikey segment
+            painter.drawLine(start.x(), start.y(), start.x(), mid_y)
+            # Yatay segment
+            painter.drawLine(start.x(), mid_y, end.x(), mid_y)
+            # Son dikey segment
+            painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def draw_temp_wire(self, painter):
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
-        painter.drawLine(start, self.temp_wire_end)
+        end = self.temp_wire_end
+        
+        # Proteus tarzı geçici kablo çizimi
+        dx = end.x() - start.x()
+        dy = end.y() - start.y()
+        
+        if abs(dx) > abs(dy):
+            # Yatay öncelikli
+            mid_x = start.x() + dx // 2
+            painter.drawLine(start.x(), start.y(), mid_x, start.y())
+            painter.drawLine(mid_x, start.y(), mid_x, end.y())
+            painter.drawLine(mid_x, end.y(), end.x(), end.y())
+        else:
+            # Dikey öncelikli
+            mid_y = start.y() + dy // 2
+            painter.drawLine(start.x(), start.y(), start.x(), mid_y)
+            painter.drawLine(start.x(), mid_y, end.x(), mid_y)
+            painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
         pos = event.pos()
@@ -162,20 +267,33 @@ class Canvas(QWidget):
             pin = self.get_pin_at(pos)
             if pin:
                 if self.connecting_from is None:
-                    # Kablo bağlantısı başlat
-                    self.connecting_from = pin
-                    self.temp_wire_end = pos
+                    # Kablo bağlantısı başlat (sadece çıkış pinlerinden)
+                    if not pin.is_input:
+                        self.connecting_from = pin
+                        self.temp_wire_end = pos
                 else:
-                    # Kablo bağlantısını tamamla
-                    self.circuit.add_wire(self.connecting_from, pin)
-                    self.connecting_from = None
-                    self.temp_wire_end = None
-                    self.update()
+                    # Kablo bağlantısını tamamla (sadece giriş pinlerine)
+                    if pin.is_input and pin != self.connecting_from:
+                        self.circuit.add_wire(self.connecting_from, pin)
+                        self.connecting_from = None
+                        self.temp_wire_end = None
+                        self.update()
+                    else:
+                        # Geçersiz bağlantı, iptal et
+                        self.connecting_from = None
+                        self.temp_wire_end = None
+                        self.update()
                 return
             
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
+                # Switch bileşenine tıklama - toggle
+                if component.type == "SWITCH":
+                    component.toggle()
+                    self.update()
+                    return
+                    
                 if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                     # Ctrl ile çoklu seçim
                     if component in self.selected_components:
@@ -252,11 +370,11 @@ class Canvas(QWidget):
         return None
         
     def get_pin_at(self, pos):
-        pin_radius = 5
+        pin_radius = 8  # Daha büyük tıklama alanı
         for component in self.circuit.components:
             for pin in component.input_pins + component.output_pins:
                 pin_pos = pin.get_position()
-                if (pos - pin_pos).manhattanLength() < pin_radius * 2:
+                if (pos - pin_pos).manhattanLength() < pin_radius * 3:
                     return pin
         return None
         

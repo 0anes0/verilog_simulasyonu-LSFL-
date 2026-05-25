@@ -22,13 +22,17 @@ class MainWindow(QMainWindow):
         
     def init_ui(self):
         self.setWindowTitle("LSFL - Logic Sim For Linux")
-        self.setGeometry(100, 100, 1400, 900)
+        # Daha küçük başlangıç boyutu ve maksimize edilebilir
+        self.setGeometry(100, 100, 1200, 700)
+        self.setMinimumSize(800, 600)
         
         # Canvas (merkezi widget)
         self.canvas = Canvas(self.circuit)
         scroll = QScrollArea()
         scroll.setWidget(self.canvas)
-        scroll.setWidgetResizable(True)
+        scroll.setWidgetResizable(False)  # Canvas'ın kendi boyutunu kullan
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setCentralWidget(scroll)
         
         # Toolbar

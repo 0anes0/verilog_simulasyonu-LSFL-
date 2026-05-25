@@ -4,7 +4,7 @@ Bileşen paleti - sürüklenebilir bileşenler
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea, QPushButton,
                               QLabel, QGroupBox, QGridLayout)
-from PyQt6.QtCore import Qt, QMimeData
+from PyQt6.QtCore import Qt, QMimeData, QPoint
 from PyQt6.QtGui import QDrag
 
 
@@ -174,15 +174,12 @@ class ComponentButton(QPushButton):
         
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            # Sürükle-bırak başlat
-            drag = QDrag(self)
-            mime_data = QMimeData()
-            mime_data.setText(self.component_type)
-            drag.setMimeData(mime_data)
-            drag.exec(Qt.DropAction.CopyAction)
+            # Tek tıklama ile canvas ortasına ekle
+            center = QPoint(self.canvas.width() // 2, self.canvas.height() // 2)
+            self.canvas.add_component(self.component_type, center)
         super().mousePressEvent(event)
         
     def mouseDoubleClickEvent(self, event):
-        # Çift tıklama ile canvas ortasına ekle
-        center = self.canvas.rect().center()
+        # Çift tıklama da aynı işlevi yapar
+        center = QPoint(self.canvas.width() // 2, self.canvas.height() // 2)
         self.canvas.add_component(self.component_type, center)
