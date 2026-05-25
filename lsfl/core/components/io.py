@@ -60,3 +60,29 @@ class Clock(Component):
         super().reset()
         self.state = False
         self.stop()
+
+
+class InputPin(Component):
+    def __init__(self, x=0, y=0):
+        super().__init__("INPUT", x, y, 70, 40)
+        self.type = "INPUT_PIN"
+        self.add_output_pin("Out")
+        self.state = False
+        
+    def toggle(self):
+        self.state = not self.state
+        self.update()
+        
+    def update(self):
+        self.output_pins[0].set_value(self.state)
+
+
+class OutputPin(Component):
+    def __init__(self, x=0, y=0):
+        super().__init__("OUTPUT", x, y, 70, 40)
+        self.type = "OUTPUT_PIN"
+        self.add_input_pin("In")
+        
+    def update(self):
+        # Output sadece görselleştirme için
+        pass

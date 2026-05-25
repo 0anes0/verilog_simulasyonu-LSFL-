@@ -15,6 +15,18 @@ class ComponentPalette(QWidget):
         self.init_ui()
         
     def init_ui(self):
+        # Ana layout
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Scroll area oluştur
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # İçerik widget'ı
+        content_widget = QWidget()
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
@@ -97,6 +109,8 @@ class ComponentPalette(QWidget):
         
         # Input/Output
         io_group = self.create_group("Giriş/Çıkış", [
+            ("INPUT_PIN", "Input Pin"),
+            ("OUTPUT_PIN", "Output Pin"),
             ("SWITCH", "Switch"),
             ("BUTTON", "Button"),
             ("CLOCK", "Clock"),
@@ -118,7 +132,11 @@ class ComponentPalette(QWidget):
         ])
         layout.addWidget(other_group)
         
-        self.setLayout(layout)
+        content_widget.setLayout(layout)
+        scroll.setWidget(content_widget)
+        
+        main_layout.addWidget(scroll)
+        self.setLayout(main_layout)
         
     def create_group(self, title, components):
         group = QGroupBox(title)
@@ -174,12 +192,19 @@ class ComponentButton(QPushButton):
         
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            # Tek tıklama ile canvas ortasına ekle
-            center = QPoint(self.canvas.width() // 2, self.canvas.height() // 2)
-            self.canvas.add_component(self.component_type, center)
+            # Canvas'ın görünür alanının ortasına ekle
+            scroll_area = self.canvas.parent()
+            if scroll_area:
+                # Scroll area'nın görünür alanının merkezi
+                viewport_center = scroll_area.viewport().rect().center()
+                # Canvas koordinatlarına çevir
+                canvas_pos = scroll_area.widget().mapFrom(scroll_area.viewport(), viewport_center)
+                self.canvas.add_component(self.component_type, canvas_pos)
+            else:
+                center = QPoint(self.canvas.width() // 2, self.canvas.height() // 2)
+                self.canvas.add_component(self.component_type, center)
         super().mousePressEvent(event)
         
     def mouseDoubleClickEvent(self, event):
         # Çift tıklama da aynı işlevi yapar
-        center = QPoint(self.canvas.width() // 2, self.canvas.height() // 2)
-        self.canvas.add_component(self.component_type, center)
+        self.mousePressEvent(event)

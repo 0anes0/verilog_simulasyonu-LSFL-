@@ -51,6 +51,10 @@ python lsfl/main.py
 - `Ctrl+R`: Simülasyonu sıfırla
 - `Delete`: Seçili bileşenleri sil
 - `Ctrl+A`: Tümünü seç
+- `Ctrl+Scroll`: Zoom in/out
+- `Orta Fare Tuşu`: Pan (kaydırma)
+- `Sol Tık`: Bileşen seç / Pin'den kablo çek
+- `Sağ Tık`: Kablo bağlantısını iptal et
 
 ## Bileşenler
 
@@ -80,9 +84,19 @@ python lsfl/main.py
 - ROM (16x8, 256x8)
 
 ### Giriş/Çıkış
+- Input Pin, Output Pin (Manuel test için)
 - Switch, Button, Clock
 - LED, RGB LED
 - 7-Segment Display, Hex Display
+
+## Kullanım İpuçları
+
+- **Zoom**: `Ctrl + Mouse Wheel` ile yakınlaştırma/uzaklaştırma
+- **Pan**: Orta fare tuşu ile sürükleyerek haritada gezinme
+- **Kablo Bağlama**: Herhangi bir pin'e tıklayın, ardından hedef pin'e tıklayın
+- **Input Test**: Input Pin veya Switch'e tıklayarak ON/OFF yapabilirsiniz
+- **Bileşen Ekleme**: Sol panelden bileşene tıklayın, görünür alanda ortaya eklenir
+- **IEEE Semboller**: Mantık kapıları IEEE standart sembollerle gösterilir
 
 ## Verilog Export
 

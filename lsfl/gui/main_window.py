@@ -27,7 +27,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(800, 600)
         
         # Canvas (merkezi widget)
-        self.canvas = Canvas(self.circuit)
+        self.canvas = Canvas(self.circuit, self)
         scroll = QScrollArea()
         scroll.setWidget(self.canvas)
         scroll.setWidgetResizable(False)  # Canvas'ın kendi boyutunu kullan

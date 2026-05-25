@@ -4,16 +4,17 @@ Devre çizim alanı - sürükle-bırak, zoom, pan özellikleri ile
 
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QPoint, QRect, QPointF
-from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QWheelEvent, QMouseEvent
+from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QWheelEvent, QMouseEvent, QPainterPath, QPolygonF
 
 from core.component import Component
 from core.wire import Wire
 
 
 class Canvas(QWidget):
-    def __init__(self, circuit):
+    def __init__(self, circuit, main_window=None):
         super().__init__()
         self.circuit = circuit
+        self.main_window = main_window
         # Daha büyük çalışma alanı
         self.setFixedSize(3000, 3000)
         self.setMouseTracking(True)
@@ -41,6 +42,10 @@ class Canvas(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Zoom ve offset uygula
+        painter.translate(self.offset)
+        painter.scale(self.zoom, self.zoom)
         
         # Grid çiz
         if self.show_grid:
@@ -83,6 +88,21 @@ class Canvas(QWidget):
             return
         elif component.type == "LED":
             self.draw_led(painter, component)
+            return
+        elif component.type == "INPUT_PIN":
+            self.draw_input_pin(painter, component)
+            return
+        elif component.type == "OUTPUT_PIN":
+            self.draw_output_pin(painter, component)
+            return
+        elif component.type in ["AND", "OR", "NAND", "NOR", "XOR", "XNOR"]:
+            self.draw_logic_gate(painter, component)
+            return
+        elif component.type == "NOT":
+            self.draw_not_gate(painter, component)
+            return
+        elif component.type == "BUFFER":
+            self.draw_buffer_gate(painter, component)
             return
             
         # Seçili bileşenleri vurgula
@@ -154,6 +174,163 @@ class Canvas(QWidget):
         # LED metni
         painter.setPen(QPen(QColor(255, 255, 255)))
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "LED")
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_logic_gate(self, painter, component):
+        """IEEE standart mantık kapısı çiz"""
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 2))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        painter.setBrush(QBrush(QColor(60, 60, 60)))
+        
+        # IEEE standart dikdörtgen şekil
+        rect = QRect(component.x, component.y, component.width, component.height)
+        painter.drawRect(rect)
+        
+        # Kapı sembolü
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        symbol = ""
+        if component.type == "AND":
+            symbol = "&"
+        elif component.type == "OR":
+            symbol = "≥1"
+        elif component.type == "NAND":
+            symbol = "&"
+        elif component.type == "NOR":
+            symbol = "≥1"
+        elif component.type == "XOR":
+            symbol = "=1"
+        elif component.type == "XNOR":
+            symbol = "=1"
+        
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, symbol)
+        
+        # NAND, NOR, XNOR için çıkışta inverter balonu
+        if component.type in ["NAND", "NOR", "XNOR"]:
+            painter.setBrush(QBrush(QColor(60, 60, 60)))
+            bubble_x = component.x + component.width
+            bubble_y = component.y + component.height // 2
+            painter.drawEllipse(QPoint(bubble_x, bubble_y), 4, 4)
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_not_gate(self, painter, component):
+        """IEEE standart NOT kapısı çiz"""
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 2))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        painter.setBrush(QBrush(QColor(60, 60, 60)))
+        
+        # IEEE standart dikdörtgen
+        rect = QRect(component.x, component.y, component.width, component.height)
+        painter.drawRect(rect)
+        
+        # "1" sembolü
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "1")
+        
+        # Çıkışta inverter balonu
+        painter.setBrush(QBrush(QColor(60, 60, 60)))
+        bubble_x = component.x + component.width
+        bubble_y = component.y + component.height // 2
+        painter.drawEllipse(QPoint(bubble_x, bubble_y), 4, 4)
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_buffer_gate(self, painter, component):
+        """IEEE standart Buffer çiz"""
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 2))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        painter.setBrush(QBrush(QColor(60, 60, 60)))
+        
+        # IEEE standart dikdörtgen
+        rect = QRect(component.x, component.y, component.width, component.height)
+        painter.drawRect(rect)
+        
+        # "1" sembolü
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "1")
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_input_pin(self, painter, component):
+        """Input Pin çiz"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Durum rengine göre
+        if component.state:
+            painter.setBrush(QBrush(QColor(100, 200, 100)))
+        else:
+            painter.setBrush(QBrush(QColor(80, 80, 80)))
+        
+        # Üçgen şekli (sağa bakan ok)
+        points = [
+            QPoint(component.x, component.y),
+            QPoint(component.x, component.y + component.height),
+            QPoint(component.x + component.width, component.y + component.height // 2)
+        ]
+        painter.drawPolygon(QPolygonF(points))
+        
+        # Metin
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        status = "1" if component.state else "0"
+        text_rect = QRect(component.x, component.y, component.width - 10, component.height)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, status)
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_output_pin(self, painter, component):
+        """Output Pin çiz"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        # Seçili mi?
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Durum rengine göre
+        is_on = len(component.input_pins) > 0 and component.input_pins[0].value
+        if is_on:
+            painter.setBrush(QBrush(QColor(100, 200, 100)))
+        else:
+            painter.setBrush(QBrush(QColor(80, 80, 80)))
+        
+        # Üçgen şekli (sola bakan ok)
+        points = [
+            QPoint(component.x + component.width, component.y),
+            QPoint(component.x + component.width, component.y + component.height),
+            QPoint(component.x, component.y + component.height // 2)
+        ]
+        painter.drawPolygon(QPolygonF(points))
+        
+        # Metin
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        status = "1" if is_on else "0"
+        text_rect = QRect(component.x + 10, component.y, component.width - 10, component.height)
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, status)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -260,26 +437,33 @@ class Canvas(QWidget):
             painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
-        pos = event.pos()
+        # Zoom ve offset'i hesaba kat
+        pos = self.map_to_canvas(event.pos())
         
         if event.button() == Qt.MouseButton.LeftButton:
             # Pin tıklaması kontrolü (kablo bağlantısı için)
             pin = self.get_pin_at(pos)
             if pin:
                 if self.connecting_from is None:
-                    # Kablo bağlantısı başlat (sadece çıkış pinlerinden)
-                    if not pin.is_input:
-                        self.connecting_from = pin
-                        self.temp_wire_end = pos
+                    # Kablo bağlantısı başlat - her pin'den başlayabilir
+                    self.connecting_from = pin
+                    self.temp_wire_end = pos
                 else:
-                    # Kablo bağlantısını tamamla (sadece giriş pinlerine)
-                    if pin.is_input and pin != self.connecting_from:
-                        self.circuit.add_wire(self.connecting_from, pin)
+                    # Kablo bağlantısını tamamla
+                    # Aynı pin değilse ve uygun yönde ise bağla
+                    if pin != self.connecting_from:
+                        # Çıkış -> Giriş veya Giriş -> Çıkış
+                        if self.connecting_from.is_input != pin.is_input:
+                            # Doğru yönde bağlantı yap (her zaman çıkış -> giriş)
+                            if self.connecting_from.is_input:
+                                self.circuit.add_wire(pin, self.connecting_from)
+                            else:
+                                self.circuit.add_wire(self.connecting_from, pin)
                         self.connecting_from = None
                         self.temp_wire_end = None
                         self.update()
                     else:
-                        # Geçersiz bağlantı, iptal et
+                        # Aynı pin, iptal et
                         self.connecting_from = None
                         self.temp_wire_end = None
                         self.update()
@@ -288,8 +472,8 @@ class Canvas(QWidget):
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
-                # Switch bileşenine tıklama - toggle
-                if component.type == "SWITCH":
+                # Switch ve INPUT_PIN bileşenine tıklama - toggle
+                if component.type in ["SWITCH", "INPUT_PIN"]:
                     component.toggle()
                     self.update()
                     return
@@ -322,7 +506,7 @@ class Canvas(QWidget):
                 self.update()
                 
     def mouseMoveEvent(self, event: QMouseEvent):
-        pos = event.pos()
+        pos = self.map_to_canvas(event.pos())
         
         if self.dragging_component and self.selected_components:
             # Bileşenleri sürükle
@@ -333,9 +517,9 @@ class Canvas(QWidget):
             
         elif self.panning and self.pan_start:
             # Pan
-            delta = pos - self.pan_start
+            delta = event.pos() - self.pan_start
             self.offset += delta
-            self.pan_start = pos
+            self.pan_start = event.pos()
             self.update()
             
         elif self.connecting_from:
@@ -353,14 +537,25 @@ class Canvas(QWidget):
             self.setCursor(Qt.CursorShape.ArrowCursor)
             
     def wheelEvent(self, event: QWheelEvent):
-        # Zoom
-        delta = event.angleDelta().y()
-        if delta > 0:
-            self.zoom *= 1.1
+        # Zoom (Ctrl tuşu ile)
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            delta = event.angleDelta().y()
+            zoom_factor = 1.1 if delta > 0 else 0.9
+            
+            # Mouse pozisyonunu merkez al
+            old_pos = event.position()
+            
+            self.zoom *= zoom_factor
+            self.zoom = max(0.3, min(3.0, self.zoom))
+            
+            # Status bar'ı güncelle
+            if self.main_window:
+                self.main_window.statusBar.showMessage(f"Zoom: {self.zoom:.0%}")
+            
+            self.update()
         else:
-            self.zoom /= 1.1
-        self.zoom = max(0.1, min(5.0, self.zoom))
-        self.update()
+            # Normal scroll - kaydırma
+            super().wheelEvent(event)
         
     def get_component_at(self, pos):
         for component in reversed(self.circuit.components):
@@ -369,12 +564,20 @@ class Canvas(QWidget):
                 return component
         return None
         
+    def map_to_canvas(self, screen_pos):
+        """Ekran koordinatlarını canvas koordinatlarına çevir"""
+        # Offset ve zoom'u tersine uygula
+        x = (screen_pos.x() - self.offset.x()) / self.zoom
+        y = (screen_pos.y() - self.offset.y()) / self.zoom
+        return QPoint(int(x), int(y))
+    
     def get_pin_at(self, pos):
-        pin_radius = 8  # Daha büyük tıklama alanı
+        pin_radius = 15  # Çok daha büyük tıklama alanı
         for component in self.circuit.components:
             for pin in component.input_pins + component.output_pins:
                 pin_pos = pin.get_position()
-                if (pos - pin_pos).manhattanLength() < pin_radius * 3:
+                distance = (pos - pin_pos).manhattanLength()
+                if distance < pin_radius:
                     return pin
         return None
         

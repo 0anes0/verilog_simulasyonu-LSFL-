@@ -61,6 +61,10 @@ class ComponentFactory:
             return LED(x, y)
         elif component_type == "CLOCK":
             return Clock(x, y)
+        elif component_type == "INPUT_PIN":
+            return InputPin(x, y)
+        elif component_type == "OUTPUT_PIN":
+            return OutputPin(x, y)
             
         else:
             # Varsayılan bileşen
