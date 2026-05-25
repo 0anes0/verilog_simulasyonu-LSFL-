@@ -34,13 +34,13 @@ class LED(Component):
 
 class Clock(Component):
     def __init__(self, x=0, y=0):
-        super().__init__("Clock", x, y, 70, 50)
+        super().__init__("CLK", x, y, 70, 50)
         self.type = "CLOCK"
-        self.add_output_pin("CLK")
+        self.add_output_pin("Out")
         
         self.state = False
         self.timer = None
-        self.frequency = 2  # Hz (daha yavaş, gözlemlenebilir)
+        self.frequency = 1  # Hz (daha yavaş, gözlemlenebilir)
         self.tick_count = 0
         
     def start(self):
@@ -75,10 +75,11 @@ class Clock(Component):
 
 class InputPin(Component):
     def __init__(self, x=0, y=0):
-        super().__init__("INPUT", x, y, 70, 40)
+        super().__init__("IN", x, y, 70, 50)
         self.type = "INPUT_PIN"
         self.add_output_pin("Out")
         self.state = False
+        self.custom_name = "IN"
         
     def toggle(self):
         self.state = not self.state
@@ -86,14 +87,25 @@ class InputPin(Component):
         
     def update(self):
         self.output_pins[0].set_value(self.state)
+    
+    def set_custom_name(self, name):
+        """Özel isim ata"""
+        self.custom_name = name
+        self.name = name
 
 
 class OutputPin(Component):
     def __init__(self, x=0, y=0):
-        super().__init__("OUTPUT", x, y, 70, 40)
+        super().__init__("OUT", x, y, 70, 50)
         self.type = "OUTPUT_PIN"
         self.add_input_pin("In")
+        self.custom_name = "OUT"
         
     def update(self):
         # Output sadece görselleştirme için
         pass
+    
+    def set_custom_name(self, name):
+        """Özel isim ata"""
+        self.custom_name = name
+        self.name = name

@@ -30,6 +30,16 @@ class ComponentPalette(QWidget):
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
+        # Input/Output (EN ÜSTTE)
+        io_group = self.create_group("Giriş/Çıkış", [
+            ("INPUT_PIN", "Input Pin"),
+            ("OUTPUT_PIN", "Output Pin"),
+            ("SWITCH", "Switch"),
+            ("CLOCK", "Clock"),
+            ("LED", "LED"),
+        ])
+        layout.addWidget(io_group)
+        
         # Temel Mantık Kapıları
         gates_group = self.create_group("Mantık Kapıları", [
             ("AND", "AND Kapısı"),
@@ -106,20 +116,6 @@ class ComponentPalette(QWidget):
             ("ROM_256X8", "256x8 ROM"),
         ])
         layout.addWidget(mem_group)
-        
-        # Input/Output
-        io_group = self.create_group("Giriş/Çıkış", [
-            ("INPUT_PIN", "Input Pin"),
-            ("OUTPUT_PIN", "Output Pin"),
-            ("SWITCH", "Switch"),
-            ("BUTTON", "Button"),
-            ("CLOCK", "Clock"),
-            ("LED", "LED"),
-            ("LED_RGB", "RGB LED"),
-            ("SEVEN_SEGMENT", "7-Segment Display"),
-            ("HEX_DISPLAY", "Hex Display"),
-        ])
-        layout.addWidget(io_group)
         
         # Diğer
         other_group = self.create_group("Diğer", [

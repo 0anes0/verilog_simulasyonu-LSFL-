@@ -107,18 +107,20 @@ python lsfl/main.py
 - **Grid**: Hassas yerleştirme için 20px grid sistemi
 
 ### Simülasyon
-- **Test Modu (Simülasyon Durdurulduğunda)**:
-  - Input Pin ve Switch'lere tıklayarak değerlerini değiştirebilirsiniz
-  - Devre düzenlenebilir (bileşen ekleme, taşıma, silme)
-  - Her değişiklik sonrası devre otomatik güncellenir
+- **Düzenleme Modu (Simülasyon Durdurulduğunda)**:
+  - Devre düzenlenebilir (bileşen ekleme, taşıma, silme, kablo bağlama)
+  - Input pinleri değiştirilemez (simülasyon için)
+  - Clock çalışmaz
   
 - **Çalışma Modu (Simülasyon Başlatıldığında)**:
   - Devre otomatik olarak 10 Hz hızında güncellenir
+  - Input Pin ve Switch'lere tıklayarak değerlerini değiştirebilirsiniz
   - Clock bileşenleri otomatik çalışır
-  - Düzenleme yapılamaz (sadece izleme)
+  - Düzenleme yapılamaz (sadece input değiştirme ve izleme)
   - Arka plan yeşilimsi renkte görünür
   
 - **Gerçek Zamanlı**: Sinyal değişiklikleri anında görünür (yeşil = 1, gri = 0)
+- **Bileşen İsimlendirme**: Input/Output pinlerine özel isimler verilebilir
 
 ### Profesyonel Özellikler
 - **IEEE Semboller**: Mantık kapıları IEEE standart sembollerle gösterilir

@@ -147,9 +147,14 @@ class Canvas(QWidget):
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # Bileşen adı
+        # Bileşen adı (üstte, pinlerle çakışmayacak şekilde)
         painter.setPen(QPen(QColor(255, 255, 255)))
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, component.name)
+        font = painter.font()
+        font.setPointSize(9)
+        font.setBold(True)
+        painter.setFont(font)
+        name_rect = QRect(component.x, component.y + 5, component.width, 20)
+        painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, component.name)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -209,7 +214,7 @@ class Canvas(QWidget):
         self.draw_pins(painter, component)
     
     def draw_logic_gate(self, painter, component):
-        """IEEE standart mantık kapısı çiz"""
+        """Mantık kapısı çiz - yazılı isimlerle"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -218,40 +223,23 @@ class Canvas(QWidget):
         
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # IEEE standart dikdörtgen şekil
+        # Dikdörtgen şekil
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # Kapı sembolü
+        # Kapı ismi (büyük ve net)
         painter.setPen(QPen(QColor(255, 255, 255)))
-        symbol = ""
-        if component.type == "AND":
-            symbol = "&"
-        elif component.type == "OR":
-            symbol = "≥1"
-        elif component.type == "NAND":
-            symbol = "&"
-        elif component.type == "NOR":
-            symbol = "≥1"
-        elif component.type == "XOR":
-            symbol = "=1"
-        elif component.type == "XNOR":
-            symbol = "=1"
-        
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, symbol)
-        
-        # NAND, NOR, XNOR için çıkışta inverter balonu
-        if component.type in ["NAND", "NOR", "XNOR"]:
-            painter.setBrush(QBrush(QColor(60, 60, 60)))
-            bubble_x = component.x + component.width
-            bubble_y = component.y + component.height // 2
-            painter.drawEllipse(QPoint(bubble_x, bubble_y), 4, 4)
+        font = painter.font()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, component.type)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
     
     def draw_not_gate(self, painter, component):
-        """IEEE standart NOT kapısı çiz"""
+        """NOT kapısı çiz"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -260,25 +248,23 @@ class Canvas(QWidget):
         
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # IEEE standart dikdörtgen
+        # Dikdörtgen
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # "1" sembolü
+        # "NOT" yazısı
         painter.setPen(QPen(QColor(255, 255, 255)))
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "1")
-        
-        # Çıkışta inverter balonu
-        painter.setBrush(QBrush(QColor(60, 60, 60)))
-        bubble_x = component.x + component.width
-        bubble_y = component.y + component.height // 2
-        painter.drawEllipse(QPoint(bubble_x, bubble_y), 4, 4)
+        font = painter.font()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "NOT")
         
         # Pinleri çiz
         self.draw_pins(painter, component)
     
     def draw_buffer_gate(self, painter, component):
-        """IEEE standart Buffer çiz"""
+        """Buffer çiz"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -287,13 +273,17 @@ class Canvas(QWidget):
         
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # IEEE standart dikdörtgen
+        # Dikdörtgen
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # "1" sembolü
+        # "BUFFER" yazısı
         painter.setPen(QPen(QColor(255, 255, 255)))
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "1")
+        font = painter.font()
+        font.setPointSize(9)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "BUF")
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -314,19 +304,26 @@ class Canvas(QWidget):
         else:
             painter.setBrush(QBrush(QColor(80, 80, 80)))
         
-        # Üçgen şekli (sağa bakan ok)
-        points = [
-            QPointF(component.x, component.y),
-            QPointF(component.x, component.y + component.height),
-            QPointF(component.x + component.width, component.y + component.height // 2)
-        ]
-        painter.drawPolygon(QPolygonF(points))
+        # Dikdörtgen şekil
+        painter.drawRoundedRect(rect, 5, 5)
         
-        # Metin
+        # İsim ve durum
         painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setPointSize(8)
+        painter.setFont(font)
+        
+        # İsim üstte
+        name_rect = QRect(component.x, component.y + 5, component.width, component.height // 2)
+        painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, component.name)
+        
+        # Durum altta
         status = "1" if component.state else "0"
-        text_rect = QRect(component.x, component.y, component.width - 10, component.height)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, status)
+        status_rect = QRect(component.x, component.y + component.height // 2, component.width, component.height // 2 - 5)
+        font.setPointSize(12)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(status_rect, Qt.AlignmentFlag.AlignCenter, status)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -348,19 +345,26 @@ class Canvas(QWidget):
         else:
             painter.setBrush(QBrush(QColor(80, 80, 80)))
         
-        # Üçgen şekli (sola bakan ok)
-        points = [
-            QPointF(component.x + component.width, component.y),
-            QPointF(component.x + component.width, component.y + component.height),
-            QPointF(component.x, component.y + component.height // 2)
-        ]
-        painter.drawPolygon(QPolygonF(points))
+        # Dikdörtgen şekil
+        painter.drawRoundedRect(rect, 5, 5)
         
-        # Metin
+        # İsim ve durum
         painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setPointSize(8)
+        painter.setFont(font)
+        
+        # İsim üstte
+        name_rect = QRect(component.x, component.y + 5, component.width, component.height // 2)
+        painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, component.name)
+        
+        # Durum altta
         status = "1" if is_on else "0"
-        text_rect = QRect(component.x + 10, component.y, component.width - 10, component.height)
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, status)
+        status_rect = QRect(component.x, component.y + component.height // 2, component.width, component.height // 2 - 5)
+        font.setPointSize(12)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(status_rect, Qt.AlignmentFlag.AlignCenter, status)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -368,9 +372,20 @@ class Canvas(QWidget):
     def draw_pins(self, painter, component):
         pin_radius = 6  # Biraz daha büyük pinler
         
+        # Font ayarları
+        font = painter.font()
+        font.setPointSize(7)
+        painter.setFont(font)
+        
         # Giriş pinleri (sol taraf)
         for i, pin in enumerate(component.input_pins):
-            y = component.y + (i + 1) * component.height // (len(component.input_pins) + 1)
+            # Pin pozisyonu - üstten ve alttan boşluk bırak
+            y_offset = 25  # Üstten boşluk (isim için)
+            available_height = component.height - y_offset - 10  # Alttan da boşluk
+            if len(component.input_pins) > 1:
+                y = component.y + y_offset + (i * available_height // (len(component.input_pins) - 1))
+            else:
+                y = component.y + component.height // 2
             
             # Pin durumuna göre renk
             if pin.value:
@@ -382,13 +397,19 @@ class Canvas(QWidget):
                 
             painter.drawEllipse(QPoint(component.x, y), pin_radius, pin_radius)
             
-            # Pin etiketi - daha iyi konumlandırma
-            painter.setPen(QPen(QColor(220, 220, 220)))
-            painter.drawText(component.x + 12, y + 4, pin.name)
+            # Pin etiketi - içeride
+            painter.setPen(QPen(QColor(200, 200, 200)))
+            painter.drawText(component.x + 10, y + 3, pin.name)
         
         # Çıkış pinleri (sağ taraf)
         for i, pin in enumerate(component.output_pins):
-            y = component.y + (i + 1) * component.height // (len(component.output_pins) + 1)
+            # Pin pozisyonu
+            y_offset = 25
+            available_height = component.height - y_offset - 10
+            if len(component.output_pins) > 1:
+                y = component.y + y_offset + (i * available_height // (len(component.output_pins) - 1))
+            else:
+                y = component.y + component.height // 2
             
             if pin.value:
                 painter.setBrush(QBrush(QColor(100, 255, 100)))
@@ -399,10 +420,10 @@ class Canvas(QWidget):
                 
             painter.drawEllipse(QPoint(component.x + component.width, y), pin_radius, pin_radius)
             
-            # Pin etiketi - sağa hizalı
-            painter.setPen(QPen(QColor(220, 220, 220)))
+            # Pin etiketi - içeride, sağa hizalı
+            painter.setPen(QPen(QColor(200, 200, 200)))
             text_width = painter.fontMetrics().horizontalAdvance(pin.name)
-            painter.drawText(component.x + component.width - text_width - 12, y + 4, pin.name)
+            painter.drawText(component.x + component.width - text_width - 10, y + 3, pin.name)
             
     def draw_wire(self, painter, wire):
         # Kablo değerine göre renk
@@ -467,14 +488,8 @@ class Canvas(QWidget):
             painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
-        # Simülasyon çalışırken sadece pan'e izin ver
-        if self.circuit.is_running:
-            if event.button() == Qt.MouseButton.MiddleButton:
-                # Pan'e izin ver
-                pass
-            else:
-                # Diğer tüm işlemleri engelle
-                return
+        # Simülasyon durdurulduğunda düzenlemeyi engelle (sadece input değiştirme)
+        # Simülasyon çalışırken input değiştirme ve pan'e izin ver
         
         # Zoom ve offset'i hesaba kat
         pos = self.map_to_canvas(event.pos())
@@ -522,12 +537,17 @@ class Canvas(QWidget):
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
-                # Switch ve INPUT_PIN bileşenine tıklama - toggle (sadece simülasyon durdurulduğunda)
-                if component.type in ["SWITCH", "INPUT_PIN"] and not self.circuit.is_running:
+                # Switch ve INPUT_PIN bileşenine tıklama - toggle (simülasyon çalışırken)
+                if component.type in ["SWITCH", "INPUT_PIN"]:
                     component.toggle()
                     # Manuel değişiklik sonrası devreyi bir kez güncelle
-                    self.circuit.step()
+                    if not self.circuit.is_running:
+                        self.circuit.step()
                     self.update()
+                    return
+                
+                # Simülasyon çalışırken düzenlemeyi engelle
+                if self.circuit.is_running:
                     return
                     
                 if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -574,10 +594,11 @@ class Canvas(QWidget):
             self.update()
             return
         
+        # Simülasyon çalışırken düzenlemeyi engelle
+        if self.circuit.is_running and not self.placing_component:
+            return
+        
         if self.dragging_component and self.selected_components:
-            # Simülasyon çalışırken düzenlemeyi engelle
-            if self.circuit.is_running:
-                return
             
             # Bileşenleri sürükle
             delta = pos - self.dragging_component.get_position()
