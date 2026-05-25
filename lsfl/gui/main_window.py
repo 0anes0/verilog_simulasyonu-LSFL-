@@ -4,7 +4,7 @@ Ana pencere ve kullanıcı arayüzü
 
 from PyQt6.QtWidgets import (QMainWindow, QToolBar, QStatusBar, QDockWidget,
                               QVBoxLayout, QWidget, QPushButton, QMessageBox,
-                              QFileDialog, QScrollArea)
+                              QFileDialog, QScrollArea, QSizePolicy)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 
@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         
         # Toolbar'ı sağa hizala için spacer
         spacer = QWidget()
-        spacer.setSizePolicy(QWidget.Policy.Expanding, QWidget.Policy.Expanding)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         toolbar.addWidget(spacer)
         
     def create_component_palette(self):
