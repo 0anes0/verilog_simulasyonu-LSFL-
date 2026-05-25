@@ -243,7 +243,7 @@ class MainWindow(QMainWindow):
         if self.circuit.is_running:
             self.circuit.stop_simulation()
             self.sim_action.setText("▶ Simülasyon Başlat")
-            self.statusBar.showMessage("Simülasyon durduruldu - Düzenleme aktif")
+            self.statusBar.showMessage("Simülasyon DURDURULDU - Input pinleri değiştirilebilir, devre düzenlenebilir")
             # Yerleştirme modunu iptal et
             self.canvas.cancel_placing()
         else:
@@ -251,7 +251,7 @@ class MainWindow(QMainWindow):
             self.canvas.cancel_placing()
             self.circuit.start_simulation()
             self.sim_action.setText("⏸ Simülasyon Durdur")
-            self.statusBar.showMessage("Simülasyon çalışıyor - Düzenleme devre dışı")
+            self.statusBar.showMessage("Simülasyon ÇALIŞIYOR - Sadece izleme modu (düzenleme yapılamaz)")
         self.canvas.update()
         
     def reset_simulation(self):

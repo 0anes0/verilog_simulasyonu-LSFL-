@@ -27,10 +27,12 @@ class Pin:
             return QPoint(self.component.x + self.component.width, y)
             
     def set_value(self, value):
-        self.value = bool(value)
-        # Bağlı kabloları güncelle
-        for wire in self.connected_wires:
-            wire.update()
+        """Pin değerini ayarla (sadece çıkış pinleri için)"""
+        new_value = bool(value)
+        # Değer değişmediyse güncelleme yapma (döngüyü önle)
+        if self.value == new_value:
+            return
+        self.value = new_value
 
 
 class Component:

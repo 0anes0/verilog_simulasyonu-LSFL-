@@ -39,26 +39,37 @@ class Clock(Component):
         self.add_output_pin("CLK")
         
         self.state = False
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.toggle)
-        self.frequency = 1  # Hz
+        self.timer = None
+        self.frequency = 2  # Hz (daha yavaş, gözlemlenebilir)
+        self.tick_count = 0
         
     def start(self):
+        """Clock'u başlat"""
+        if self.timer is None:
+            self.timer = QTimer()
+            self.timer.timeout.connect(self.toggle)
         self.timer.start(int(1000 / (2 * self.frequency)))
         
     def stop(self):
-        self.timer.stop()
+        """Clock'u durdur"""
+        if self.timer:
+            self.timer.stop()
         
     def toggle(self):
+        """Clock sinyalini değiştir"""
         self.state = not self.state
+        self.tick_count += 1
         self.update()
         
     def update(self):
+        """Çıkış pinini güncelle"""
         self.output_pins[0].set_value(self.state)
         
     def reset(self):
+        """Clock'u sıfırla"""
         super().reset()
         self.state = False
+        self.tick_count = 0
         self.stop()
 
 

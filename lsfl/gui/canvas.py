@@ -53,9 +53,12 @@ class Canvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
-        # Simülasyon çalışıyorsa arka plan rengini değiştir
+        # Simülasyon çalışıyorsa arka plan rengini değiştir (yeşilimsi)
         if self.circuit.is_running:
-            painter.fillRect(self.rect(), QColor(40, 45, 40))
+            painter.fillRect(self.rect(), QColor(35, 42, 35))
+        else:
+            # Durdurulduğunda normal koyu gri
+            painter.fillRect(self.rect(), QColor(43, 43, 43))
         
         # Zoom ve offset uygula
         painter.translate(self.offset)
@@ -464,9 +467,14 @@ class Canvas(QWidget):
             painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
-        # Simülasyon çalışırken düzenlemeyi engelle
-        if self.circuit.is_running and event.button() != Qt.MouseButton.MiddleButton:
-            return
+        # Simülasyon çalışırken sadece pan'e izin ver
+        if self.circuit.is_running:
+            if event.button() == Qt.MouseButton.MiddleButton:
+                # Pan'e izin ver
+                pass
+            else:
+                # Diğer tüm işlemleri engelle
+                return
         
         # Zoom ve offset'i hesaba kat
         pos = self.map_to_canvas(event.pos())
@@ -514,9 +522,11 @@ class Canvas(QWidget):
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
-                # Switch ve INPUT_PIN bileşenine tıklama - toggle
-                if component.type in ["SWITCH", "INPUT_PIN"]:
+                # Switch ve INPUT_PIN bileşenine tıklama - toggle (sadece simülasyon durdurulduğunda)
+                if component.type in ["SWITCH", "INPUT_PIN"] and not self.circuit.is_running:
                     component.toggle()
+                    # Manuel değişiklik sonrası devreyi bir kez güncelle
+                    self.circuit.step()
                     self.update()
                     return
                     

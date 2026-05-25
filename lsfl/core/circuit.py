@@ -43,6 +43,13 @@ class Circuit:
             
     def start_simulation(self):
         self.is_running = True
+        # Clock bileşenlerini başlat
+        for component in self.components:
+            if component.type == "CLOCK":
+                component.start()
+        # İlk durumu hesapla
+        self.step()
+        # Timer'ı başlat
         if self.simulation_timer is None:
             self.simulation_timer = QTimer()
             self.simulation_timer.timeout.connect(self.step)
@@ -52,16 +59,25 @@ class Circuit:
         self.is_running = False
         if self.simulation_timer:
             self.simulation_timer.stop()
+        # Clock bileşenlerini durdur
+        for component in self.components:
+            if component.type == "CLOCK":
+                component.stop()
             
     def step(self):
         """Bir simülasyon adımı çalıştır"""
-        # Tüm bileşenleri güncelle
-        for component in self.components:
-            component.update()
+        # Çoklu geçiş ile sinyallerin yayılmasını sağla
+        # (kombinasyonel devreler için gerekli)
+        max_iterations = 10
+        
+        for iteration in range(max_iterations):
+            # Önce tüm kabloları güncelle
+            for wire in self.wires:
+                wire.update()
             
-        # Kabloları güncelle
-        for wire in self.wires:
-            wire.update()
+            # Sonra tüm bileşenleri güncelle
+            for component in self.components:
+                component.update()
             
     def reset(self):
         """Simülasyonu sıfırla"""
