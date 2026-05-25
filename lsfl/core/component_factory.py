@@ -7,6 +7,7 @@ from core.components.arithmetic import *
 from core.components.mux import *
 from core.components.flipflops import *
 from core.components.io import *
+from core.components.advanced import *
 
 
 class ComponentFactory:
@@ -39,20 +40,84 @@ class ComponentFactory:
             return FullAdder(x, y)
         elif component_type == "ADDER_4BIT":
             return Adder4Bit(x, y)
+        elif component_type == "ADDER_8BIT":
+            return Adder8Bit(x, y)
+        elif component_type == "SUBTRACTOR":
+            return Subtractor(x, y)
+        elif component_type == "MULTIPLIER":
+            return Multiplier(x, y)
         elif component_type == "COMPARATOR":
             return Comparator(x, y)
             
-        # Multiplexer
+        # Multiplexer/Demultiplexer
         elif component_type == "MUX_2TO1":
             return Mux2to1(x, y)
         elif component_type == "MUX_4TO1":
             return Mux4to1(x, y)
+        elif component_type == "MUX_8TO1":
+            return Mux8to1(x, y)
+        elif component_type == "DEMUX_1TO2":
+            return Demux1to2(x, y)
+        elif component_type == "DEMUX_1TO4":
+            return Demux1to4(x, y)
+        elif component_type == "DEMUX_1TO8":
+            return Demux1to8(x, y)
+        
+        # Encoder/Decoder
+        elif component_type == "ENCODER_4TO2":
+            return Encoder4to2(x, y)
+        elif component_type == "ENCODER_8TO3":
+            return Encoder8to3(x, y)
+        elif component_type == "DECODER_2TO4":
+            return Decoder2to4(x, y)
+        elif component_type == "DECODER_3TO8":
+            return Decoder3to8(x, y)
+        elif component_type == "PRIORITY_ENCODER":
+            return Encoder8to3(x, y)  # Priority encoder olarak kullan
             
         # Flip-Flops
         elif component_type == "D_FLIPFLOP":
             return DFlipFlop(x, y)
         elif component_type == "JK_FLIPFLOP":
             return JKFlipFlop(x, y)
+        elif component_type == "T_FLIPFLOP":
+            return TFlipFlop(x, y)
+        elif component_type == "SR_FLIPFLOP":
+            return SRFlipFlop(x, y)
+        elif component_type == "LATCH_D":
+            return DLatch(x, y)
+        elif component_type == "LATCH_SR":
+            return SRLatch(x, y)
+        
+        # Register/Counter
+        elif component_type == "REGISTER_4BIT":
+            return Register4Bit(x, y)
+        elif component_type == "REGISTER_8BIT":
+            return Register8Bit(x, y)
+        elif component_type == "SHIFT_REGISTER":
+            return ShiftRegister(x, y)
+        elif component_type == "COUNTER_4BIT":
+            return Counter4Bit(x, y)
+        elif component_type == "COUNTER_8BIT":
+            return Counter8Bit(x, y)
+        elif component_type == "UP_DOWN_COUNTER":
+            return UpDownCounter(x, y)
+        
+        # Memory
+        elif component_type == "RAM_16X8":
+            return RAM16x8(x, y)
+        elif component_type == "RAM_256X8":
+            return RAM256x8(x, y)
+        elif component_type == "ROM_16X8":
+            return ROM16x8(x, y)
+        elif component_type == "ROM_256X8":
+            return ROM256x8(x, y)
+        
+        # Diğer
+        elif component_type == "SPLITTER":
+            return Splitter(x, y)
+        elif component_type == "MERGER":
+            return Merger(x, y)
             
         # I/O
         elif component_type == "SWITCH":

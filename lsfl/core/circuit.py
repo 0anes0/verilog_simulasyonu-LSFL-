@@ -43,26 +43,24 @@ class Circuit:
             
     def start_simulation(self):
         self.is_running = True
-        # Clock bileşenlerini başlat
+        # Clock bileşenlerini sıfırla
+        import time
+        current_time = int(time.time() * 1000)
         for component in self.components:
             if component.type == "CLOCK":
-                component.start()
+                component.last_toggle_time = current_time
         # İlk durumu hesapla
         self.step()
-        # Timer'ı başlat
+        # Timer'ı başlat - daha hızlı güncelleme için 50ms
         if self.simulation_timer is None:
             self.simulation_timer = QTimer()
             self.simulation_timer.timeout.connect(self.step)
-        self.simulation_timer.start(100)  # 10 Hz
+        self.simulation_timer.start(50)  # 20 Hz güncelleme
         
     def stop_simulation(self):
         self.is_running = False
         if self.simulation_timer:
             self.simulation_timer.stop()
-        # Clock bileşenlerini durdur
-        for component in self.components:
-            if component.type == "CLOCK":
-                component.stop()
             
     def step(self):
         """Bir simülasyon adımı çalıştır"""

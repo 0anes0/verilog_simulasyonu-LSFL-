@@ -67,10 +67,10 @@ class MainWindow(QMainWindow):
         toolbar.addAction(open_action)
         
         # Kaydet
-        save_action = QAction("Kaydet", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.triggered.connect(self.save_circuit)
-        toolbar.addAction(save_action)
+        self.save_action = QAction("Kaydet", self)
+        self.save_action.setShortcut(QKeySequence.StandardKey.Save)
+        self.save_action.triggered.connect(self.save_circuit)
+        toolbar.addAction(self.save_action)
         
         toolbar.addSeparator()
         
@@ -122,10 +122,8 @@ class MainWindow(QMainWindow):
         open_action.triggered.connect(self.open_circuit)
         file_menu.addAction(open_action)
         
-        save_action = QAction("Kaydet", self)
-        save_action.setShortcut(QKeySequence.StandardKey.Save)
-        save_action.triggered.connect(self.save_circuit)
-        file_menu.addAction(save_action)
+        # Kaydet action'ı toolbar'dan kullan
+        file_menu.addAction(self.save_action)
         
         save_as_action = QAction("Farklı Kaydet", self)
         save_as_action.triggered.connect(self.save_circuit_as)

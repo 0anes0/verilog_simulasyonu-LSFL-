@@ -880,7 +880,7 @@ class ComponentPropertiesDialog(QDialog):
             freq_layout = QHBoxLayout()
             freq_layout.addWidget(QLabel("Frekans (Hz):"))
             self.freq_spin = QDoubleSpinBox()
-            self.freq_spin.setRange(0.1, 100.0)
+            self.freq_spin.setRange(0.1, 10.0)
             self.freq_spin.setValue(self.component.frequency)
             self.freq_spin.setSingleStep(0.1)
             freq_layout.addWidget(self.freq_spin)
@@ -911,11 +911,7 @@ class ComponentPropertiesDialog(QDialog):
         self.component.name = self.name_edit.text()
         
         if self.component.type == "CLOCK":
-            self.component.frequency = self.freq_spin.value()
-            # Eğer clock çalışıyorsa yeniden başlat
-            if self.component.timer and self.component.timer.isActive():
-                self.component.stop()
-                self.component.start()
+            self.component.set_frequency(self.freq_spin.value())
         
         if self.component.type in ["INPUT_PIN", "OUTPUT_PIN"]:
             self.component.set_custom_name(self.custom_name_edit.text())

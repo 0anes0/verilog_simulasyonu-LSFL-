@@ -8,17 +8,25 @@ from PyQt6.QtCore import QTimer
 
 class Switch(Component):
     def __init__(self, x=0, y=0):
-        super().__init__("Switch", x, y, 60, 40)
+        super().__init__("Switch", x, y, 70, 50)
         self.type = "SWITCH"
+        # Seri anahtar: 1 giriş, 1 çıkış
+        self.add_input_pin("In")
         self.add_output_pin("Out")
-        self.state = False
+        self.state = True  # Varsayılan: ON (kapalı devre)
         
     def toggle(self):
         self.state = not self.state
         self.update()
         
     def update(self):
-        self.output_pins[0].set_value(self.state)
+        """Switch ON ise: Out = In, Switch OFF ise: Out = 0 (açık devre)"""
+        if self.state:
+            # ON: Sinyali geçir
+            self.output_pins[0].set_value(self.input_pins[0].value)
+        else:
+            # OFF: Çıkışı 0 yap (açık devre)
+            self.output_pins[0].set_value(False)
 
 
 class LED(Component):
@@ -39,30 +47,27 @@ class Clock(Component):
         self.add_output_pin("Out")
         
         self.state = False
-        self.timer = None
-        self.frequency = 1  # Hz (daha yavaş, gözlemlenebilir)
+        self.frequency = 1  # Hz
         self.tick_count = 0
+        self.half_period_ms = 500  # 1 Hz için 500ms yarım periyot
+        self.last_toggle_time = 0
         
-    def start(self):
-        """Clock'u başlat"""
-        if self.timer is None:
-            self.timer = QTimer()
-            self.timer.timeout.connect(self.toggle)
-        self.timer.start(int(1000 / (2 * self.frequency)))
-        
-    def stop(self):
-        """Clock'u durdur"""
-        if self.timer:
-            self.timer.stop()
-        
-    def toggle(self):
-        """Clock sinyalini değiştir"""
-        self.state = not self.state
-        self.tick_count += 1
-        self.update()
+    def set_frequency(self, freq):
+        """Frekansı ayarla"""
+        self.frequency = freq
+        self.half_period_ms = int(1000 / (2 * freq))
         
     def update(self):
-        """Çıkış pinini güncelle"""
+        """Simülasyon her adımında çağrılır - otomatik toggle"""
+        # Simülasyon çalışıyorsa otomatik toggle
+        import time
+        current_time = int(time.time() * 1000)  # ms cinsinden
+        
+        if current_time - self.last_toggle_time >= self.half_period_ms:
+            self.state = not self.state
+            self.tick_count += 1
+            self.last_toggle_time = current_time
+        
         self.output_pins[0].set_value(self.state)
         
     def reset(self):
@@ -70,7 +75,7 @@ class Clock(Component):
         super().reset()
         self.state = False
         self.tick_count = 0
-        self.stop()
+        self.last_toggle_time = 0
 
 
 class InputPin(Component):
