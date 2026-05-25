@@ -193,15 +193,17 @@ class ComponentButton(QPushButton):
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             # Canvas'ın görünür alanının ortasına ekle
+            # Canvas'ın parent'ı QScrollArea
             scroll_area = self.canvas.parent()
-            if scroll_area:
+            if scroll_area and hasattr(scroll_area, 'viewport'):
                 # Scroll area'nın görünür alanının merkezi
                 viewport_center = scroll_area.viewport().rect().center()
-                # Canvas koordinatlarına çevir
-                canvas_pos = scroll_area.widget().mapFrom(scroll_area.viewport(), viewport_center)
+                # Canvas koordinatlarına çevir (zoom ve offset'i hesaba kat)
+                canvas_pos = self.canvas.map_to_canvas(viewport_center)
                 self.canvas.add_component(self.component_type, canvas_pos)
             else:
-                center = QPoint(self.canvas.width() // 2, self.canvas.height() // 2)
+                # Fallback: Canvas'ın ortası
+                center = QPoint(1500, 1500)  # Canvas'ın merkezi (3000x3000)
                 self.canvas.add_component(self.component_type, center)
         super().mousePressEvent(event)
         
