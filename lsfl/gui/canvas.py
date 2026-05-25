@@ -2,7 +2,7 @@
 Devre çizim alanı - sürükle-bırak, zoom, pan özellikleri ile
 """
 
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QInputDialog, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout, QSpinBox, QDoubleSpinBox
 from PyQt6.QtCore import Qt, QPoint, QRect, QPointF
 from PyQt6.QtGui import QPainter, QPen, QColor, QBrush, QWheelEvent, QMouseEvent, QPainterPath, QPolygonF, QKeyEvent
 
@@ -41,6 +41,9 @@ class Canvas(QWidget):
         # Bileşen yerleştirme modu
         self.placing_component = None
         self.placing_component_type = None
+        
+        # Kablo köşe noktaları
+        self.wire_waypoints = []
         
         # Undo/Redo
         self.undo_stack = []
@@ -468,24 +471,39 @@ class Canvas(QWidget):
     def draw_temp_wire(self, painter):
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
-        end = self.temp_wire_end
         
-        # Proteus tarzı geçici kablo çizimi
-        dx = end.x() - start.x()
-        dy = end.y() - start.y()
-        
-        if abs(dx) > abs(dy):
-            # Yatay öncelikli
-            mid_x = start.x() + dx // 2
-            painter.drawLine(start.x(), start.y(), mid_x, start.y())
-            painter.drawLine(mid_x, start.y(), mid_x, end.y())
-            painter.drawLine(mid_x, end.y(), end.x(), end.y())
+        # Köşe noktaları varsa onları kullan
+        if self.wire_waypoints:
+            # İlk segment
+            prev_point = start
+            for waypoint in self.wire_waypoints:
+                painter.drawLine(prev_point, waypoint)
+                # Köşe noktasını işaretle
+                painter.setBrush(QBrush(QColor(150, 150, 255)))
+                painter.drawEllipse(waypoint, 3, 3)
+                prev_point = waypoint
+            
+            # Son segment (mouse pozisyonuna)
+            if self.temp_wire_end:
+                painter.drawLine(prev_point, self.temp_wire_end)
         else:
-            # Dikey öncelikli
-            mid_y = start.y() + dy // 2
-            painter.drawLine(start.x(), start.y(), start.x(), mid_y)
-            painter.drawLine(start.x(), mid_y, end.x(), mid_y)
-            painter.drawLine(end.x(), mid_y, end.x(), end.y())
+            # Köşe noktası yoksa direkt çiz
+            end = self.temp_wire_end
+            dx = end.x() - start.x()
+            dy = end.y() - start.y()
+            
+            if abs(dx) > abs(dy):
+                # Yatay öncelikli
+                mid_x = start.x() + dx // 2
+                painter.drawLine(start.x(), start.y(), mid_x, start.y())
+                painter.drawLine(mid_x, start.y(), mid_x, end.y())
+                painter.drawLine(mid_x, end.y(), end.x(), end.y())
+            else:
+                # Dikey öncelikli
+                mid_y = start.y() + dy // 2
+                painter.drawLine(start.x(), start.y(), start.x(), mid_y)
+                painter.drawLine(start.x(), mid_y, end.x(), mid_y)
+                painter.drawLine(end.x(), mid_y, end.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
         # Simülasyon durdurulduğunda düzenlemeyi engelle (sadece input değiştirme)
@@ -513,6 +531,7 @@ class Canvas(QWidget):
                     # Kablo bağlantısı başlat - her pin'den başlayabilir
                     self.connecting_from = pin
                     self.temp_wire_end = pos
+                    self.wire_waypoints = []
                 else:
                     # Kablo bağlantısını tamamla
                     # Aynı pin değilse ve uygun yönde ise bağla
@@ -526,23 +545,29 @@ class Canvas(QWidget):
                                 self.circuit.add_wire(self.connecting_from, pin)
                         self.connecting_from = None
                         self.temp_wire_end = None
+                        self.wire_waypoints = []
                         self.update()
                     else:
                         # Aynı pin, iptal et
                         self.connecting_from = None
                         self.temp_wire_end = None
+                        self.wire_waypoints = []
                         self.update()
+                return
+            
+            # Kablo çizimi sırasında boşluğa tıklama - köşe noktası ekle
+            if self.connecting_from:
+                self.wire_waypoints.append(pos)
+                self.update()
                 return
             
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
-                # Switch ve INPUT_PIN bileşenine tıklama - toggle (simülasyon çalışırken)
-                if component.type in ["SWITCH", "INPUT_PIN"]:
+                # Çift tıklama kontrolü için - tek tıklamada sadece seçim/toggle
+                # Switch ve INPUT_PIN bileşenine tıklama - toggle (SADECE simülasyon çalışırken)
+                if component.type in ["SWITCH", "INPUT_PIN"] and self.circuit.is_running:
                     component.toggle()
-                    # Manuel değişiklik sonrası devreyi bir kez güncelle
-                    if not self.circuit.is_running:
-                        self.circuit.step()
                     self.update()
                     return
                 
@@ -578,8 +603,12 @@ class Canvas(QWidget):
         elif event.button() == Qt.MouseButton.RightButton:
             # Kablo bağlantısını veya yerleştirmeyi iptal et
             if self.connecting_from:
-                self.connecting_from = None
-                self.temp_wire_end = None
+                # Son köşe noktasını sil veya tamamen iptal et
+                if self.wire_waypoints:
+                    self.wire_waypoints.pop()
+                else:
+                    self.connecting_from = None
+                    self.temp_wire_end = None
                 self.update()
             elif self.placing_component:
                 self.cancel_placing()
@@ -669,6 +698,17 @@ class Canvas(QWidget):
             self.panning = False
             self.pan_start = None
             self.setCursor(Qt.CursorShape.ArrowCursor)
+    
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        """Çift tıklama - bileşen özelliklerini düzenle"""
+        if self.circuit.is_running:
+            return  # Simülasyon çalışırken özellik değiştirme
+        
+        pos = self.map_to_canvas(event.pos())
+        component = self.get_component_at(pos)
+        
+        if component:
+            self.show_component_properties(component)
             
     def wheelEvent(self, event: QWheelEvent):
         # Zoom (Ctrl tuşu ile)
@@ -787,6 +827,7 @@ class Canvas(QWidget):
             elif self.connecting_from:
                 self.connecting_from = None
                 self.temp_wire_end = None
+                self.wire_waypoints = []
                 self.update()
             elif self.selected_components:
                 self.selected_components = []
@@ -804,6 +845,79 @@ class Canvas(QWidget):
             self.update()
         super().keyPressEvent(event)
     
+    def show_component_properties(self, component):
+        """Bileşen özelliklerini düzenle"""
+        dialog = ComponentPropertiesDialog(component, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.update()
+    
     def export_png(self, filename):
         pixmap = self.grab()
         pixmap.save(filename)
+
+
+class ComponentPropertiesDialog(QDialog):
+    """Bileşen özellikleri düzenleme dialogu"""
+    def __init__(self, component, parent=None):
+        super().__init__(parent)
+        self.component = component
+        self.setWindowTitle(f"{component.type} Özellikleri")
+        self.setModal(True)
+        self.init_ui()
+    
+    def init_ui(self):
+        layout = QVBoxLayout()
+        
+        # İsim
+        name_layout = QHBoxLayout()
+        name_layout.addWidget(QLabel("İsim:"))
+        self.name_edit = QLineEdit(self.component.name)
+        name_layout.addWidget(self.name_edit)
+        layout.addLayout(name_layout)
+        
+        # Clock için frekans ayarı
+        if self.component.type == "CLOCK":
+            freq_layout = QHBoxLayout()
+            freq_layout.addWidget(QLabel("Frekans (Hz):"))
+            self.freq_spin = QDoubleSpinBox()
+            self.freq_spin.setRange(0.1, 100.0)
+            self.freq_spin.setValue(self.component.frequency)
+            self.freq_spin.setSingleStep(0.1)
+            freq_layout.addWidget(self.freq_spin)
+            layout.addLayout(freq_layout)
+        
+        # Input/Output Pin için özel isim
+        if self.component.type in ["INPUT_PIN", "OUTPUT_PIN"]:
+            custom_layout = QHBoxLayout()
+            custom_layout.addWidget(QLabel("Özel İsim:"))
+            self.custom_name_edit = QLineEdit(self.component.custom_name)
+            custom_layout.addWidget(self.custom_name_edit)
+            layout.addLayout(custom_layout)
+        
+        # Butonlar
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("Tamam")
+        ok_btn.clicked.connect(self.accept_changes)
+        cancel_btn = QPushButton("İptal")
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(ok_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+        
+        self.setLayout(layout)
+    
+    def accept_changes(self):
+        """Değişiklikleri uygula"""
+        self.component.name = self.name_edit.text()
+        
+        if self.component.type == "CLOCK":
+            self.component.frequency = self.freq_spin.value()
+            # Eğer clock çalışıyorsa yeniden başlat
+            if self.component.timer and self.component.timer.isActive():
+                self.component.stop()
+                self.component.start()
+        
+        if self.component.type in ["INPUT_PIN", "OUTPUT_PIN"]:
+            self.component.set_custom_name(self.custom_name_edit.text())
+        
+        self.accept()

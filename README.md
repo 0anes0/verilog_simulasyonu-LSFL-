@@ -54,7 +54,8 @@ python lsfl/main.py
 - `Ctrl+Scroll`: Zoom in/out
 - `Orta Fare Tuşu`: Pan (kaydırma)
 - `Sol Tık`: Bileşen yerleştir / Bileşen seç / Pin'den kablo çek
-- `Sağ Tık`: İptal (yerleştirme/kablo)
+- `Sağ Tık`: İptal (yerleştirme/kablo) veya son köşe noktasını sil
+- `Çift Tık`: Bileşen özelliklerini düzenle
 - `Sürükle`: Bileşen taşı veya kare seçim
 - `Ctrl+Tık`: Çoklu seçim
 - `Esc`: Yerleştirme modundan çık
@@ -98,8 +99,13 @@ python lsfl/main.py
 ### Temel İşlemler
 - **Bileşen Ekleme**: Sol panelden bileşene tıklayın, ardından canvas'ta istediğiniz yere tıklayın
 - **Bileşen Taşıma**: Bileşene tıklayıp sürükleyin
+- **Bileşen Özellikleri**: Bileşene çift tıklayarak isim ve özellikleri düzenleyin
 - **Çoklu Seçim**: Boş alandan sürükleyerek kare oluşturun veya `Ctrl + Tık` ile tek tek seçin
-- **Kablo Bağlama**: Bir pin'e tıklayın, ardından hedef pin'e tıklayın
+- **Kablo Bağlama**: 
+  - Bir pin'e tıklayın
+  - İstediğiniz köşe noktalarına tıklayın (opsiyonel)
+  - Hedef pin'e tıklayın
+  - Sağ tık ile son köşe noktasını silin veya tamamen iptal edin
 - **İptal**: Sağ tık ile yerleştirme veya kablo bağlantısını iptal edin
 
 ### Görünüm Kontrolleri
@@ -108,20 +114,26 @@ python lsfl/main.py
 - **Grid**: Hassas yerleştirme için 20px grid sistemi
 
 ### Simülasyon
-- **Düzenleme Modu (Simülasyon Durdurulduğunda)**:
-  - Devre düzenlenebilir (bileşen ekleme, taşıma, silme, kablo bağlama)
-  - Input pinleri değiştirilemez (simülasyon için)
-  - Clock çalışmaz
-  
-- **Çalışma Modu (Simülasyon Başlatıldığında)**:
-  - Devre otomatik olarak 10 Hz hızında güncellenir
-  - Input Pin ve Switch'lere tıklayarak değerlerini değiştirebilirsiniz
-  - Clock bileşenleri otomatik çalışır
-  - Düzenleme yapılamaz (sadece input değiştirme ve izleme)
-  - Arka plan yeşilimsi renkte görünür
-  
+
+#### Düzenleme Modu (⏹ Simülasyon Durdurulduğunda)
+- ✅ Devre düzenlenebilir (bileşen ekleme, taşıma, silme, kablo bağlama)
+- ✅ Bileşen özelliklerini düzenleyebilirsiniz (çift tıklama)
+- ❌ Input pinleri değiştirilemez
+- ❌ Clock çalışmaz
+- 🎨 Normal koyu gri arka plan
+
+#### Çalışma Modu (▶ Simülasyon Başlatıldığında)
+- ✅ Input Pin ve Switch'lere tıklayarak değerlerini değiştirebilirsiniz
+- ✅ Clock bileşenleri otomatik çalışır
+- ✅ Devre otomatik olarak 10 Hz hızında güncellenir
+- ❌ Düzenleme yapılamaz (sadece input değiştirme ve izleme)
+- 🎨 Yeşilimsi arka plan
+
+#### Özellikler
 - **Gerçek Zamanlı**: Sinyal değişiklikleri anında görünür (yeşil = 1, gri = 0)
-- **Bileşen İsimlendirme**: Input/Output pinlerine özel isimler verilebilir
+- **Bileşen Özellikleri**: Çift tıklama ile isim ve özellik düzenleme
+- **Clock Ayarı**: Frekans ayarlanabilir (0.1 - 100 Hz)
+- **Özel İsimler**: Input/Output pinlerine özel isimler verilebilir
 
 ### Profesyonel Özellikler
 - **IEEE Semboller**: Mantık kapıları IEEE standart sembollerle gösterilir

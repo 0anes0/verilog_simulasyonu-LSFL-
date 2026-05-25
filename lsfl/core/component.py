@@ -18,12 +18,23 @@ class Pin:
         if self.is_input:
             # Giriş pinleri sol tarafta
             index = self.component.input_pins.index(self)
-            y = self.component.y + (index + 1) * self.component.height // (len(self.component.input_pins) + 1)
+            # Üstten ve alttan boşluk bırak
+            y_offset = 25
+            available_height = self.component.height - y_offset - 10
+            if len(self.component.input_pins) > 1:
+                y = self.component.y + y_offset + (index * available_height // (len(self.component.input_pins) - 1))
+            else:
+                y = self.component.y + self.component.height // 2
             return QPoint(self.component.x, y)
         else:
             # Çıkış pinleri sağ tarafta
             index = self.component.output_pins.index(self)
-            y = self.component.y + (index + 1) * self.component.height // (len(self.component.output_pins) + 1)
+            y_offset = 25
+            available_height = self.component.height - y_offset - 10
+            if len(self.component.output_pins) > 1:
+                y = self.component.y + y_offset + (index * available_height // (len(self.component.output_pins) - 1))
+            else:
+                y = self.component.y + self.component.height // 2
             return QPoint(self.component.x + self.component.width, y)
             
     def set_value(self, value):
