@@ -572,7 +572,7 @@ class Canvas(QWidget):
         elif event.button() == Qt.MouseButton.MiddleButton:
             # Pan başlat
             self.panning = True
-            self.pan_start = pos
+            self.pan_start = event.pos()  # Ekran koordinatlarını kullan
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
             
         elif event.button() == Qt.MouseButton.RightButton:
@@ -612,9 +612,33 @@ class Canvas(QWidget):
             self.update()
             
         elif self.panning and self.pan_start:
-            # Pan
+            # Pan - ekran koordinatlarıyla
             delta = event.pos() - self.pan_start
-            self.offset += delta
+            new_offset = self.offset + delta
+            
+            # Canvas sınırlarını kontrol et (canvas dışına çıkmayı engelle)
+            # Maksimum offset (sağ ve alt sınır)
+            max_offset_x = 100  # Biraz boşluk bırak
+            max_offset_y = 100
+            
+            # Minimum offset (sol ve üst sınır)
+            # Parent widget'ın boyutunu al
+            parent_widget = self.parent()
+            if parent_widget:
+                viewport_width = parent_widget.width() if hasattr(parent_widget, 'width') else 800
+                viewport_height = parent_widget.height() if hasattr(parent_widget, 'height') else 600
+            else:
+                viewport_width = 800
+                viewport_height = 600
+            
+            min_offset_x = -(self.width() - viewport_width + 100)
+            min_offset_y = -(self.height() - viewport_height + 100)
+            
+            # Offset'i sınırla
+            new_offset.setX(max(min_offset_x, min(max_offset_x, new_offset.x())))
+            new_offset.setY(max(min_offset_y, min(max_offset_y, new_offset.y())))
+            
+            self.offset = new_offset
             self.pan_start = event.pos()
             self.update()
             
@@ -664,8 +688,12 @@ class Canvas(QWidget):
             
             self.update()
         else:
-            # Normal scroll - kaydırma
-            super().wheelEvent(event)
+            # Pan modundaysa scroll'u engelle
+            if self.panning:
+                event.ignore()
+            else:
+                # Normal scroll - kaydırma
+                super().wheelEvent(event)
         
     def get_component_at(self, pos):
         for component in reversed(self.circuit.components):
@@ -767,6 +795,13 @@ class Canvas(QWidget):
             # Delete ile seçili bileşenleri sil
             if not self.circuit.is_running:
                 self.delete_selected()
+        elif event.key() == Qt.Key.Key_Home:
+            # Home tuşu ile başlangıç pozisyonuna dön
+            self.offset = QPoint(0, 0)
+            self.zoom = 1.0
+            if self.main_window:
+                self.main_window.statusBar.showMessage("Canvas başlangıç pozisyonuna döndü")
+            self.update()
         super().keyPressEvent(event)
     
     def export_png(self, filename):

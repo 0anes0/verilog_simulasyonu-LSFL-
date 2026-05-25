@@ -58,6 +58,7 @@ python lsfl/main.py
 - `Sürükle`: Bileşen taşı veya kare seçim
 - `Ctrl+Tık`: Çoklu seçim
 - `Esc`: Yerleştirme modundan çık
+- `Home`: Canvas'ı başlangıç pozisyonuna döndür
 
 ## Bileşenler
 
