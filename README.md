@@ -15,7 +15,23 @@ Modern mantık devresi simülatörü ve Verilog kod üreteci.
 
 ## Kurulum
 
+### Arch Linux / Manjaro / CachyOS
+
 ```bash
+sudo pacman -S python-pyqt6
+```
+
+### Diğer Dağıtımlar
+
+```bash
+pip install -r requirements.txt
+```
+
+veya sanal ortam kullanarak:
+
+```bash
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 

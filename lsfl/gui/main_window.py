@@ -107,36 +107,96 @@ class MainWindow(QMainWindow):
         
         # Dosya menüsü
         file_menu = menubar.addMenu("Dosya")
-        file_menu.addAction("Yeni", self.new_circuit, QKeySequence.StandardKey.New)
-        file_menu.addAction("Aç", self.open_circuit, QKeySequence.StandardKey.Open)
-        file_menu.addAction("Kaydet", self.save_circuit, QKeySequence.StandardKey.Save)
-        file_menu.addAction("Farklı Kaydet", self.save_circuit_as)
+        
+        new_action = QAction("Yeni", self)
+        new_action.setShortcut(QKeySequence.StandardKey.New)
+        new_action.triggered.connect(self.new_circuit)
+        file_menu.addAction(new_action)
+        
+        open_action = QAction("Aç", self)
+        open_action.setShortcut(QKeySequence.StandardKey.Open)
+        open_action.triggered.connect(self.open_circuit)
+        file_menu.addAction(open_action)
+        
+        save_action = QAction("Kaydet", self)
+        save_action.setShortcut(QKeySequence.StandardKey.Save)
+        save_action.triggered.connect(self.save_circuit)
+        file_menu.addAction(save_action)
+        
+        save_as_action = QAction("Farklı Kaydet", self)
+        save_as_action.triggered.connect(self.save_circuit_as)
+        file_menu.addAction(save_as_action)
+        
         file_menu.addSeparator()
-        file_menu.addAction("Çıkış", self.close, QKeySequence("Ctrl+Q"))
+        
+        exit_action = QAction("Çıkış", self)
+        exit_action.setShortcut(QKeySequence("Ctrl+Q"))
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
         
         # Düzenle menüsü
         edit_menu = menubar.addMenu("Düzenle")
-        edit_menu.addAction("Geri Al", self.canvas.undo, QKeySequence.StandardKey.Undo)
-        edit_menu.addAction("Yinele", self.canvas.redo, QKeySequence.StandardKey.Redo)
+        
+        undo_action = QAction("Geri Al", self)
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        undo_action.triggered.connect(self.canvas.undo)
+        edit_menu.addAction(undo_action)
+        
+        redo_action = QAction("Yinele", self)
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        redo_action.triggered.connect(self.canvas.redo)
+        edit_menu.addAction(redo_action)
+        
         edit_menu.addSeparator()
-        edit_menu.addAction("Sil", self.canvas.delete_selected, QKeySequence.StandardKey.Delete)
-        edit_menu.addAction("Tümünü Seç", self.canvas.select_all, QKeySequence.StandardKey.SelectAll)
+        
+        delete_action = QAction("Sil", self)
+        delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+        delete_action.triggered.connect(self.canvas.delete_selected)
+        edit_menu.addAction(delete_action)
+        
+        select_all_action = QAction("Tümünü Seç", self)
+        select_all_action.setShortcut(QKeySequence.StandardKey.SelectAll)
+        select_all_action.triggered.connect(self.canvas.select_all)
+        edit_menu.addAction(select_all_action)
         
         # Simülasyon menüsü
         sim_menu = menubar.addMenu("Simülasyon")
-        sim_menu.addAction("Başlat/Durdur", self.toggle_simulation, QKeySequence("Space"))
-        sim_menu.addAction("Sıfırla", self.reset_simulation, QKeySequence("Ctrl+R"))
+        
+        toggle_sim_action = QAction("Başlat/Durdur", self)
+        toggle_sim_action.setShortcut(QKeySequence("Space"))
+        toggle_sim_action.triggered.connect(self.toggle_simulation)
+        sim_menu.addAction(toggle_sim_action)
+        
+        reset_sim_action = QAction("Sıfırla", self)
+        reset_sim_action.setShortcut(QKeySequence("Ctrl+R"))
+        reset_sim_action.triggered.connect(self.reset_simulation)
+        sim_menu.addAction(reset_sim_action)
+        
         sim_menu.addSeparator()
-        sim_menu.addAction("Tek Adım", self.step_simulation, QKeySequence("Ctrl+T"))
+        
+        step_action = QAction("Tek Adım", self)
+        step_action.setShortcut(QKeySequence("Ctrl+T"))
+        step_action.triggered.connect(self.step_simulation)
+        sim_menu.addAction(step_action)
         
         # Export menüsü
         export_menu = menubar.addMenu("Export")
-        export_menu.addAction("Verilog Kodu Üret", self.export_verilog, QKeySequence("Ctrl+E"))
-        export_menu.addAction("PNG Olarak Kaydet", self.export_png)
+        
+        verilog_export_action = QAction("Verilog Kodu Üret", self)
+        verilog_export_action.setShortcut(QKeySequence("Ctrl+E"))
+        verilog_export_action.triggered.connect(self.export_verilog)
+        export_menu.addAction(verilog_export_action)
+        
+        png_export_action = QAction("PNG Olarak Kaydet", self)
+        png_export_action.triggered.connect(self.export_png)
+        export_menu.addAction(png_export_action)
         
         # Yardım menüsü
         help_menu = menubar.addMenu("Yardım")
-        help_menu.addAction("Hakkında", self.show_about)
+        
+        about_action = QAction("Hakkında", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
         
     def new_circuit(self):
         reply = QMessageBox.question(self, "Yeni Devre",
