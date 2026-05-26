@@ -681,7 +681,7 @@ class Canvas(QWidget):
             painter.drawText(component.x + component.width - text_width - 10, y + 3, pin.name)
             
     def draw_wire(self, painter, wire):
-        """Katı orthogonal kablo çiz - Seçilebilir ve düzenlenebilir"""
+        """Manuel orthogonal kablo çiz - Kullanıcı waypoint'leri korunur"""
         # Kablo seçili mi?
         is_selected = wire in getattr(self, 'selected_wires', [])
         
@@ -706,25 +706,34 @@ class Canvas(QWidget):
         start = wire.from_pin.get_position()
         end = wire.to_pin.get_position()
         
-        # Vertex'lerle yol oluştur
+        # Kullanıcının eklediği vertex'lerle yol oluştur
         if hasattr(wire, 'vertices') and wire.vertices:
             path_points = [start] + wire.vertices + [end]
             
-            # Tüm segmentleri çiz - Katı orthogonal
+            # Kullanıcının belirlediği waypoint'ler arasında DOĞRUDAN çiz
+            # Otomatik optimizasyon YOK
             for i in range(len(path_points) - 1):
                 p1 = path_points[i]
                 p2 = path_points[i + 1]
                 
-                # Diagonal kontrolü ve düzeltme
+                # Sadece orthogonal zorunluluğu - diagonal varsa L-şekli yap
                 if p1.x() != p2.x() and p1.y() != p2.y():
-                    # L-şekli yap
-                    mid = QPoint(p2.x(), p1.y())
+                    # Hangi yön daha uzunsa önce o yönde git
+                    dx = abs(p2.x() - p1.x())
+                    dy = abs(p2.y() - p1.y())
+                    
+                    if dx > dy:
+                        mid = QPoint(p2.x(), p1.y())
+                    else:
+                        mid = QPoint(p1.x(), p2.y())
+                    
                     painter.drawLine(p1, mid)
                     painter.drawLine(mid, p2)
                 else:
+                    # Zaten orthogonal
                     painter.drawLine(p1, p2)
             
-            # Vertex noktalarını çiz (düzenlenebilir tutamaklar)
+            # Kullanıcının eklediği waypoint'leri göster
             if is_selected:
                 painter.setBrush(QBrush(QColor(100, 150, 255)))
                 painter.setPen(QPen(QColor(80, 120, 200), 2))
@@ -735,11 +744,11 @@ class Canvas(QWidget):
             for vertex in wire.vertices:
                 painter.drawEllipse(vertex, 5, 5)
         else:
-            # Vertex yoksa otomatik orthogonal routing
-            dx = end.x() - start.x()
-            dy = end.y() - start.y()
+            # Vertex yoksa basit L-şekli (sadece 2 nokta arası)
+            dx = abs(end.x() - start.x())
+            dy = abs(end.y() - start.y())
             
-            if abs(dx) > abs(dy):
+            if dx > dy:
                 intermediate = QPoint(end.x(), start.y())
             else:
                 intermediate = QPoint(start.x(), end.y())
@@ -748,51 +757,61 @@ class Canvas(QWidget):
             painter.drawLine(intermediate, end)
         
     def draw_temp_wire(self, painter):
-        """Katı 90° Manhattan routing ile geçici kablo çiz - Diagonal yasak"""
+        """Manuel orthogonal kablolama - Kullanıcı waypoint'leri ZORUNLU"""
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
         
-        # Tüm yol noktalarını topla
+        # Kullanıcının tıkladığı tüm waypoint'leri koru
         path_points = [start] + self.wire_vertices
         
         if self.temp_wire_end:
-            # Son noktadan temp_wire_end'e Manhattan routing
+            # Son waypoint'ten fare pozisyonuna SADECE orthogonal çizgi
             if path_points:
                 last_point = path_points[-1]
                 
-                # Katı orthogonal routing: Önce yatay VEYA dikey, sonra diğeri
-                dx = self.temp_wire_end.x() - last_point.x()
-                dy = self.temp_wire_end.y() - last_point.y()
+                # Manuel orthogonal: Kullanıcı nereye tıklarsa oraya git
+                # Sadece son segment için otomatik L-şekli (fare takibi için)
+                dx = abs(self.temp_wire_end.x() - last_point.x())
+                dy = abs(self.temp_wire_end.y() - last_point.y())
                 
-                if abs(dx) > abs(dy):
-                    # Önce yatay git
-                    intermediate = QPoint(self.temp_wire_end.x(), last_point.y())
+                # Hangi yön daha baskınsa önce o yönde git
+                if dx > dy:
+                    # Önce yatay
+                    mid = QPoint(self.temp_wire_end.x(), last_point.y())
                 else:
-                    # Önce dikey git
-                    intermediate = QPoint(last_point.x(), self.temp_wire_end.y())
+                    # Önce dikey
+                    mid = QPoint(last_point.x(), self.temp_wire_end.y())
                 
-                # Sadece intermediate farklıysa ekle
-                if intermediate != last_point and intermediate != self.temp_wire_end:
-                    path_points.append(intermediate)
+                # Sadece son segment için ara nokta ekle
+                if mid != last_point and mid != self.temp_wire_end:
+                    path_points.append(mid)
             
             path_points.append(self.temp_wire_end)
         
-        # Yolu çiz - Her segment kesinlikle yatay veya dikey
+        # Kullanıcının eklediği waypoint'ler arasında DOĞRUDAN çizgi çek
+        # Otomatik routing YOK - sadece orthogonal zorunluluğu
         for i in range(len(path_points) - 1):
             p1 = path_points[i]
             p2 = path_points[i + 1]
             
-            # Güvenlik kontrolü: Diagonal çizim varsa düzelt
+            # Eğer diagonal ise (kullanıcı hatalı tıklamış), L-şekli yap
             if p1.x() != p2.x() and p1.y() != p2.y():
-                # Diagonal tespit edildi, L-şekli yap
-                mid = QPoint(p2.x(), p1.y())
+                # Hangi yön daha uzunsa önce o yönde git
+                dx = abs(p2.x() - p1.x())
+                dy = abs(p2.y() - p1.y())
+                
+                if dx > dy:
+                    mid = QPoint(p2.x(), p1.y())
+                else:
+                    mid = QPoint(p1.x(), p2.y())
+                
                 painter.drawLine(p1, mid)
                 painter.drawLine(mid, p2)
             else:
-                # Normal orthogonal çizgi
+                # Zaten orthogonal
                 painter.drawLine(p1, p2)
         
-        # Vertex noktalarını işaretle (düzenlenebilir tutamaklar)
+        # Kullanıcının eklediği waypoint'leri vurgula
         painter.setBrush(QBrush(QColor(150, 150, 255)))
         painter.setPen(QPen(QColor(100, 100, 200), 2))
         for vertex in self.wire_vertices:
@@ -841,13 +860,16 @@ class Canvas(QWidget):
                     # Kablo bağlantısını tamamla
                     if pin != self.connecting_from:
                         if self.connecting_from.is_input != pin.is_input:
-                            # Kabloyu vertex'lerle birlikte kaydet
+                            # Kabloyu oluştur
                             if self.connecting_from.is_input:
-                                wire = self.circuit.add_wire(pin, self.connecting_from)
+                                self.circuit.add_wire(pin, self.connecting_from)
+                                # Son eklenen kabloyu bul
+                                wire = self.circuit.wires[-1] if self.circuit.wires else None
                             else:
-                                wire = self.circuit.add_wire(self.connecting_from, pin)
+                                self.circuit.add_wire(self.connecting_from, pin)
+                                wire = self.circuit.wires[-1] if self.circuit.wires else None
                             
-                            # Vertex'leri kabloya ekle
+                            # Kullanıcının eklediği waypoint'leri ZORUNLU olarak kaydet
                             if wire and hasattr(wire, 'vertices'):
                                 wire.vertices = self.wire_vertices.copy()
                         
@@ -862,11 +884,13 @@ class Canvas(QWidget):
                         self.update()
                 return
             
-            # Kablo çizimi sırasında boşluğa tıklama - Vertex ekle
+            # Kablo çizimi sırasında boşluğa tıklama - ZORUNLU Waypoint ekle
             if self.connecting_from:
-                # Grid'e snap yap
+                # Grid'e snap yap - kullanıcının tıkladığı nokta ZORUNLU waypoint
                 snapped_pos = self.snap_to_grid(pos)
-                self.wire_vertices.append(snapped_pos)
+                # Aynı noktaya tekrar tıklanmışsa ekleme
+                if not self.wire_vertices or self.wire_vertices[-1] != snapped_pos:
+                    self.wire_vertices.append(snapped_pos)
                 self.update()
                 return
             

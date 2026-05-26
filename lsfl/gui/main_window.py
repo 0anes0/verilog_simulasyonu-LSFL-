@@ -106,19 +106,38 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(spacer)
         
     def create_component_palette(self):
-        dock = QDockWidget("Bileşenler", self)
-        dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | 
+        self.palette_dock = QDockWidget(tr("components"), self)
+        self.palette_dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | 
                             Qt.DockWidgetArea.RightDockWidgetArea)
         
         self.palette = ComponentPalette(self.canvas)
-        dock.setWidget(self.palette)
+        self.palette_dock.setWidget(self.palette)
         
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.palette_dock)
         
     def apply_translations(self):
-        """Çevirileri uygula"""
+        """Çevirileri uygula - Tüm UI'ı güncelle"""
+        self.retranslate_ui()
+    
+    def retranslate_ui(self):
+        """Tüm arayüzü yeniden çevir"""
+        # Pencere başlığı
         self.setWindowTitle(tr("app_title"))
-        # Menü ve toolbar güncellemeleri create_menu ve create_toolbar'da yapılacak
+        
+        # Status bar
+        if not self.circuit.is_running:
+            self.statusBar.showMessage(tr("ready"))
+        
+        # Toolbar butonları
+        self.sim_action.setText(tr("start_simulation") if not self.circuit.is_running else tr("stop_simulation"))
+        
+        # Menü çubuğunu yeniden oluştur
+        self.menuBar().clear()
+        self.create_menu()
+        
+        # Component palette'i yeniden oluştur
+        if hasattr(self, 'palette'):
+            self.palette.retranslate_ui()
     
     def create_menu(self):
         menubar = self.menuBar()
@@ -131,7 +150,7 @@ class MainWindow(QMainWindow):
         new_action.triggered.connect(self.new_circuit)
         file_menu.addAction(new_action)
         
-        open_action = QAction("Aç", self)
+        open_action = QAction(tr("open"), self)
         open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.triggered.connect(self.open_circuit)
         file_menu.addAction(open_action)
@@ -139,78 +158,78 @@ class MainWindow(QMainWindow):
         # Kaydet action'ı toolbar'dan kullan
         file_menu.addAction(self.save_action)
         
-        save_as_action = QAction("Farklı Kaydet", self)
+        save_as_action = QAction(tr("save_as"), self)
         save_as_action.triggered.connect(self.save_circuit_as)
         file_menu.addAction(save_as_action)
         
         file_menu.addSeparator()
         
-        exit_action = QAction("Çıkış", self)
+        exit_action = QAction(tr("exit"), self)
         exit_action.setShortcut(QKeySequence("Ctrl+Q"))
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
         # Düzenle menüsü
-        edit_menu = menubar.addMenu("Düzenle")
+        edit_menu = menubar.addMenu(tr("edit"))
         
-        undo_action = QAction("Geri Al", self)
+        undo_action = QAction(tr("undo"), self)
         undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         undo_action.triggered.connect(self.canvas.undo)
         edit_menu.addAction(undo_action)
         
-        redo_action = QAction("Yinele", self)
+        redo_action = QAction(tr("redo"), self)
         redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         redo_action.triggered.connect(self.canvas.redo)
         edit_menu.addAction(redo_action)
         
         edit_menu.addSeparator()
         
-        delete_action = QAction("Sil", self)
+        delete_action = QAction(tr("delete"), self)
         delete_action.setShortcut(QKeySequence.StandardKey.Delete)
         delete_action.triggered.connect(self.canvas.delete_selected)
         edit_menu.addAction(delete_action)
         
-        select_all_action = QAction("Tümünü Seç", self)
+        select_all_action = QAction(tr("select_all"), self)
         select_all_action.setShortcut(QKeySequence.StandardKey.SelectAll)
         select_all_action.triggered.connect(self.canvas.select_all)
         edit_menu.addAction(select_all_action)
         
         # Simülasyon menüsü
-        sim_menu = menubar.addMenu("Simülasyon")
+        sim_menu = menubar.addMenu(tr("simulation"))
         
-        toggle_sim_action = QAction("Başlat/Durdur", self)
+        toggle_sim_action = QAction(tr("start_stop"), self)
         toggle_sim_action.setShortcut(QKeySequence("Space"))
         toggle_sim_action.triggered.connect(self.toggle_simulation)
         sim_menu.addAction(toggle_sim_action)
         
-        reset_sim_action = QAction("Sıfırla", self)
+        reset_sim_action = QAction(tr("reset"), self)
         reset_sim_action.setShortcut(QKeySequence("Ctrl+R"))
         reset_sim_action.triggered.connect(self.reset_simulation)
         sim_menu.addAction(reset_sim_action)
         
         sim_menu.addSeparator()
         
-        step_action = QAction("Tek Adım", self)
+        step_action = QAction(tr("step"), self)
         step_action.setShortcut(QKeySequence("Ctrl+T"))
         step_action.triggered.connect(self.step_simulation)
         sim_menu.addAction(step_action)
         
         # Export menüsü
-        export_menu = menubar.addMenu("Export")
+        export_menu = menubar.addMenu(tr("export"))
         
-        verilog_export_action = QAction("Verilog Kodu Üret", self)
+        verilog_export_action = QAction(tr("export_verilog"), self)
         verilog_export_action.setShortcut(QKeySequence("Ctrl+E"))
         verilog_export_action.triggered.connect(self.export_verilog)
         export_menu.addAction(verilog_export_action)
         
-        png_export_action = QAction("PNG Olarak Kaydet", self)
+        png_export_action = QAction(tr("export_png"), self)
         png_export_action.triggered.connect(self.export_png)
         export_menu.addAction(png_export_action)
         
         # Yardım menüsü
-        help_menu = menubar.addMenu("Yardım")
+        help_menu = menubar.addMenu(tr("help"))
         
-        about_action = QAction("Hakkında", self)
+        about_action = QAction(tr("about"), self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
         
@@ -254,8 +273,8 @@ class MainWindow(QMainWindow):
     def toggle_simulation(self):
         if self.circuit.is_running:
             self.circuit.stop_simulation()
-            self.sim_action.setText("▶ Simülasyon Başlat")
-            self.statusBar.showMessage("⏹ DURDURULDU - Sadece devre düzenleme modu")
+            self.sim_action.setText(tr("start_simulation"))
+            self.statusBar.showMessage(tr("stopped"))
             self.canvas.cancel_placing()
             # Global clock timer'ı durdur
             if hasattr(self, 'global_clock_timer'):
@@ -263,8 +282,8 @@ class MainWindow(QMainWindow):
         else:
             self.canvas.cancel_placing()
             self.circuit.start_simulation()
-            self.sim_action.setText("⏸ Simülasyon Durdur")
-            self.statusBar.showMessage("▶ ÇALIŞIYOR - Clock otomatik, Input/Switch değiştirilebilir")
+            self.sim_action.setText(tr("stop_simulation"))
+            self.statusBar.showMessage(tr("running"))
             # Global clock timer'ı başlat
             self.start_global_clock()
         self.canvas.update()
@@ -297,7 +316,7 @@ class MainWindow(QMainWindow):
     def reset_simulation(self):
         self.circuit.reset()
         self.canvas.update()
-        self.statusBar.showMessage("Simülasyon sıfırlandı")
+        self.statusBar.showMessage(tr("simulation_reset"))
         
     def step_simulation(self):
         self.circuit.step()
@@ -314,7 +333,7 @@ class MainWindow(QMainWindow):
             dialog = VerilogDialog(verilog_code, self)
             dialog.exec()
             
-            self.statusBar.showMessage("Verilog kodu üretildi")
+            self.statusBar.showMessage(tr("verilog_generated"))
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Verilog kodu üretilemedi: {str(e)}")
             

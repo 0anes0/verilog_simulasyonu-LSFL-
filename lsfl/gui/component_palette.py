@@ -7,11 +7,34 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea, QPushButton,
 from PyQt6.QtCore import Qt, QMimeData, QPoint
 from PyQt6.QtGui import QDrag
 
+from core.i18n import tr
+
 
 class ComponentPalette(QWidget):
     def __init__(self, canvas):
         super().__init__()
         self.canvas = canvas
+        self.groups = []  # Grup referanslarını sakla
+        self.init_ui()
+    
+    def retranslate_ui(self):
+        """Dil değiştiğinde tüm grupları yeniden oluştur"""
+        # Mevcut içeriği temizle
+        layout = self.layout()
+        if layout:
+            scroll = layout.itemAt(0).widget()
+            if scroll:
+                content = scroll.widget()
+                if content:
+                    # Eski layout'u temizle
+                    old_layout = content.layout()
+                    if old_layout:
+                        while old_layout.count():
+                            item = old_layout.takeAt(0)
+                            if item.widget():
+                                item.widget().deleteLater()
+        
+        # Yeniden oluştur
         self.init_ui()
         
     def init_ui(self):
@@ -31,100 +54,100 @@ class ComponentPalette(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         # Input/Output (EN ÜSTTE)
-        io_group = self.create_group("Giriş/Çıkış", [
-            ("INPUT_PIN", "Input Pin"),
-            ("OUTPUT_PIN", "Output Pin"),
-            ("SWITCH", "Switch"),
-            ("CLOCK", "Clock"),
-            ("LED", "LED"),
+        io_group = self.create_group(tr("io_components"), [
+            ("INPUT_PIN", tr("input_pin")),
+            ("OUTPUT_PIN", tr("output_pin")),
+            ("SWITCH", tr("switch")),
+            ("CLOCK", tr("clock")),
+            ("LED", tr("led")),
         ])
         layout.addWidget(io_group)
         
         # Temel Mantık Kapıları
-        gates_group = self.create_group("Mantık Kapıları", [
-            ("AND", "AND Kapısı"),
-            ("OR", "OR Kapısı"),
-            ("NOT", "NOT Kapısı"),
-            ("NAND", "NAND Kapısı"),
-            ("NOR", "NOR Kapısı"),
-            ("XOR", "XOR Kapısı"),
-            ("XNOR", "XNOR Kapısı"),
-            ("BUFFER", "Buffer"),
+        gates_group = self.create_group(tr("logic_gates"), [
+            ("AND", tr("and_gate")),
+            ("OR", tr("or_gate")),
+            ("NOT", tr("not_gate")),
+            ("NAND", tr("nand_gate")),
+            ("NOR", tr("nor_gate")),
+            ("XOR", tr("xor_gate")),
+            ("XNOR", tr("xnor_gate")),
+            ("BUFFER", tr("buffer")),
         ])
         layout.addWidget(gates_group)
         
         # Aritmetik Bileşenler
-        arith_group = self.create_group("Aritmetik", [
-            ("HALF_ADDER", "Yarım Toplayıcı"),
-            ("FULL_ADDER", "Tam Toplayıcı"),
-            ("ADDER_4BIT", "4-bit Toplayıcı"),
-            ("ADDER_8BIT", "8-bit Toplayıcı"),
-            ("SUBTRACTOR", "Çıkarıcı"),
-            ("MULTIPLIER", "Çarpıcı"),
-            ("COMPARATOR", "Karşılaştırıcı"),
+        arith_group = self.create_group(tr("arithmetic"), [
+            ("HALF_ADDER", tr("half_adder")),
+            ("FULL_ADDER", tr("full_adder")),
+            ("ADDER_4BIT", tr("adder_4bit")),
+            ("ADDER_8BIT", tr("adder_8bit")),
+            ("SUBTRACTOR", tr("subtractor")),
+            ("MULTIPLIER", tr("multiplier")),
+            ("COMPARATOR", tr("comparator")),
         ])
         layout.addWidget(arith_group)
         
         # Multiplexer/Demultiplexer
-        mux_group = self.create_group("Mux/Demux", [
-            ("MUX_2TO1", "2:1 Multiplexer"),
-            ("MUX_4TO1", "4:1 Multiplexer"),
-            ("MUX_8TO1", "8:1 Multiplexer"),
-            ("DEMUX_1TO2", "1:2 Demultiplexer"),
-            ("DEMUX_1TO4", "1:4 Demultiplexer"),
-            ("DEMUX_1TO8", "1:8 Demultiplexer"),
+        mux_group = self.create_group(tr("mux_demux"), [
+            ("MUX_2TO1", tr("mux_2to1")),
+            ("MUX_4TO1", tr("mux_4to1")),
+            ("MUX_8TO1", tr("mux_8to1")),
+            ("DEMUX_1TO2", tr("demux_1to2")),
+            ("DEMUX_1TO4", tr("demux_1to4")),
+            ("DEMUX_1TO8", tr("demux_1to8")),
         ])
         layout.addWidget(mux_group)
         
         # Encoder/Decoder
-        codec_group = self.create_group("Encoder/Decoder", [
-            ("ENCODER_4TO2", "4:2 Encoder"),
-            ("ENCODER_8TO3", "8:3 Encoder"),
-            ("DECODER_2TO4", "2:4 Decoder"),
-            ("DECODER_3TO8", "3:8 Decoder"),
-            ("PRIORITY_ENCODER", "Priority Encoder"),
+        codec_group = self.create_group(tr("encoder_decoder"), [
+            ("ENCODER_4TO2", tr("encoder_4to2")),
+            ("ENCODER_8TO3", tr("encoder_8to3")),
+            ("DECODER_2TO4", tr("decoder_2to4")),
+            ("DECODER_3TO8", tr("decoder_3to8")),
+            ("PRIORITY_ENCODER", tr("priority_encoder")),
         ])
         layout.addWidget(codec_group)
         
         # Flip-Flops
-        ff_group = self.create_group("Flip-Flops", [
-            ("D_FLIPFLOP", "D Flip-Flop"),
-            ("JK_FLIPFLOP", "JK Flip-Flop"),
-            ("T_FLIPFLOP", "T Flip-Flop"),
-            ("SR_FLIPFLOP", "SR Flip-Flop"),
-            ("LATCH_D", "D Latch"),
-            ("LATCH_SR", "SR Latch"),
+        ff_group = self.create_group(tr("flipflops"), [
+            ("D_FLIPFLOP", tr("d_flipflop")),
+            ("JK_FLIPFLOP", tr("jk_flipflop")),
+            ("T_FLIPFLOP", tr("t_flipflop")),
+            ("SR_FLIPFLOP", tr("sr_flipflop")),
+            ("LATCH_D", tr("d_latch")),
+            ("LATCH_SR", tr("sr_latch")),
         ])
         layout.addWidget(ff_group)
         
         # Registers & Counters
-        reg_group = self.create_group("Register/Counter", [
-            ("REGISTER_4BIT", "4-bit Register"),
-            ("REGISTER_8BIT", "8-bit Register"),
-            ("SHIFT_REGISTER", "Shift Register"),
-            ("COUNTER_4BIT", "4-bit Counter"),
-            ("COUNTER_8BIT", "8-bit Counter"),
-            ("UP_DOWN_COUNTER", "Up/Down Counter"),
+        reg_group = self.create_group(tr("registers"), [
+            ("REGISTER_4BIT", tr("register_4bit")),
+            ("REGISTER_8BIT", tr("register_8bit")),
+            ("SHIFT_REGISTER", tr("shift_register")),
+            ("COUNTER_4BIT", tr("counter_4bit")),
+            ("COUNTER_8BIT", tr("counter_8bit")),
+            ("UP_DOWN_COUNTER", tr("updown_counter")),
         ])
         layout.addWidget(reg_group)
         
         # Memory
-        mem_group = self.create_group("Bellek", [
-            ("RAM_16X8", "16x8 RAM"),
-            ("RAM_256X8", "256x8 RAM"),
-            ("ROM_16X8", "16x8 ROM"),
-            ("ROM_256X8", "256x8 ROM"),
+        mem_group = self.create_group(tr("memory"), [
+            ("RAM_16X8", tr("ram_16x8")),
+            ("RAM_256X8", tr("ram_256x8")),
+            ("ROM_16X8", tr("rom_16x8")),
+            ("ROM_256X8", tr("rom_256x8")),
         ])
         layout.addWidget(mem_group)
         
         # Diğer
-        other_group = self.create_group("Diğer", [
-            ("VCC", "VCC (Power)"),
-            ("GROUND", "Ground (GND)"),
-            ("CONSTANT", "Constant"),
-            ("PROBE", "Probe"),
-            ("SPLITTER", "Splitter"),
-            ("MERGER", "Merger"),
+        other_group = self.create_group(tr("other"), [
+            ("VCC", tr("vcc")),
+            ("GROUND", tr("ground")),
+            ("CONSTANT", tr("constant")),
+            ("PROBE", tr("probe")),
+            ("SPLITTER", tr("splitter")),
+            ("MERGER", tr("merger")),
         ])
         layout.addWidget(other_group)
         

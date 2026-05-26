@@ -24,6 +24,10 @@ def main():
     # Welcome dialog göster
     welcome = WelcomeDialog()
     if welcome.exec():
+        # Seçilen dili uygula (MainWindow oluşturulmadan önce)
+        from core.i18n import set_language
+        set_language(welcome.selected_language)
+        
         # Ana pencereyi oluştur
         window = MainWindow()
         
@@ -32,10 +36,12 @@ def main():
             try:
                 window.circuit.load(welcome.selected_file)
                 window.canvas.load_circuit()
-                window.statusBar.showMessage(f"Circuit loaded: {welcome.selected_file}")
+                from core.i18n import tr
+                window.statusBar.showMessage(f"{tr('circuit_loaded')}: {welcome.selected_file}")
             except Exception as e:
                 from PyQt6.QtWidgets import QMessageBox
-                QMessageBox.critical(window, "Error", f"Could not load circuit: {str(e)}")
+                from core.i18n import tr
+                QMessageBox.critical(window, tr("error"), f"{tr('error')}: {str(e)}")
         
         window.show()
         sys.exit(app.exec())

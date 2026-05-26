@@ -18,6 +18,7 @@ class WelcomeDialog(QDialog):
         self.translator = get_translator()
         self.selected_action = None  # "new", "open", veya None
         self.selected_file = None
+        self.selected_language = self.translator.current_language  # Seçilen dil
         self.init_ui()
         
     def init_ui(self):
@@ -30,7 +31,7 @@ class WelcomeDialog(QDialog):
         layout.setSpacing(20)
         layout.setContentsMargins(40, 40, 40, 40)
         
-        # Logo (SVG -> Pixmap)
+        # Logo (SVG -> Pixmap) - SVG içinde zaten yazılar var, ayrı label eklemeyelim
         logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.svg")
         if os.path.exists(logo_path):
             # SVG'yi QPixmap'e render et
@@ -52,7 +53,7 @@ class WelcomeDialog(QDialog):
             logo_layout.addStretch()
             layout.addLayout(logo_layout)
         else:
-            # Fallback: Text logo
+            # Fallback: Text logo (SVG yoksa)
             title_label = QLabel("LSFL")
             title_label.setStyleSheet("""
                 QLabel {
@@ -63,17 +64,17 @@ class WelcomeDialog(QDialog):
             """)
             title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(title_label)
-        
-        # Subtitle
-        subtitle = QLabel("Logic Sim For Linux")
-        subtitle.setStyleSheet("""
-            QLabel {
-                font-size: 16px;
-                color: #cccccc;
-            }
-        """)
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(subtitle)
+            
+            # Subtitle (sadece fallback durumunda)
+            subtitle = QLabel("Logic Sim For Linux")
+            subtitle.setStyleSheet("""
+                QLabel {
+                    font-size: 16px;
+                    color: #cccccc;
+                }
+            """)
+            subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(subtitle)
         
         layout.addSpacing(30)
         
@@ -168,12 +169,15 @@ class WelcomeDialog(QDialog):
         self.setLayout(layout)
     
     def on_language_changed(self, index):
-        """Dil değiştirildiğinde"""
+        """Dil değiştirildiğinde - Global state'i güncelle"""
         lang_code = self.lang_combo.itemData(index)
         self.translator.set_language(lang_code)
         
         # UI'ı güncelle
         self.update_ui_texts()
+        
+        # Seçilen dili sakla (MainWindow'a aktarılacak)
+        self.selected_language = lang_code
     
     def update_ui_texts(self):
         """UI metinlerini güncelle"""
