@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
                               QLabel, QComboBox, QFileDialog, QMessageBox)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtSvg import QSvgWidget
+from PyQt6.QtSvg import QSvgRenderer
 import os
 
 from core.i18n import get_translator, tr
@@ -30,14 +30,25 @@ class WelcomeDialog(QDialog):
         layout.setSpacing(20)
         layout.setContentsMargins(40, 40, 40, 40)
         
-        # Logo (SVG)
+        # Logo (SVG -> Pixmap)
         logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.svg")
         if os.path.exists(logo_path):
-            logo_widget = QSvgWidget(logo_path)
-            logo_widget.setFixedSize(200, 200)
+            # SVG'yi QPixmap'e render et
+            renderer = QSvgRenderer(logo_path)
+            pixmap = QPixmap(200, 200)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            
+            from PyQt6.QtGui import QPainter
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            
+            logo_label = QLabel()
+            logo_label.setPixmap(pixmap)
+            logo_label.setFixedSize(200, 200)
             logo_layout = QHBoxLayout()
             logo_layout.addStretch()
-            logo_layout.addWidget(logo_widget)
+            logo_layout.addWidget(logo_label)
             logo_layout.addStretch()
             layout.addLayout(logo_layout)
         else:
