@@ -15,43 +15,56 @@ class ComponentPalette(QWidget):
         super().__init__()
         self.canvas = canvas
         self.groups = []  # Grup referanslarını sakla
+        self.scroll_area = None
+        self.content_widget = None
+        self.content_layout = None
         self.init_ui()
     
     def retranslate_ui(self):
-        """Dil değiştiğinde tüm grupları yeniden oluştur"""
-        # Mevcut içeriği temizle
-        layout = self.layout()
-        if layout:
-            scroll = layout.itemAt(0).widget()
-            if scroll:
-                content = scroll.widget()
-                if content:
-                    # Eski layout'u temizle
-                    old_layout = content.layout()
-                    if old_layout:
-                        while old_layout.count():
-                            item = old_layout.takeAt(0)
-                            if item.widget():
-                                item.widget().deleteLater()
+        """Dil değiştiğinde sadece metinleri güncelle - layout'u yeniden oluşturma"""
+        if not self.content_layout:
+            return
         
-        # Yeniden oluştur
-        self.init_ui()
+        # Mevcut grupları temizle
+        while self.content_layout.count():
+            item = self.content_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Grupları yeniden oluştur (sadece widget'lar, layout değil)
+        self.populate_groups()
         
     def init_ui(self):
-        # Ana layout
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        # Ana layout - sadece bir kez oluştur
+        if self.layout() is None:
+            main_layout = QVBoxLayout()
+            main_layout.setContentsMargins(0, 0, 0, 0)
+            self.setLayout(main_layout)
+        else:
+            main_layout = self.layout()
         
-        # Scroll area oluştur
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # Scroll area oluştur - sadece bir kez
+        if self.scroll_area is None:
+            self.scroll_area = QScrollArea()
+            self.scroll_area.setWidgetResizable(True)
+            self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            main_layout.addWidget(self.scroll_area)
         
-        # İçerik widget'ı
-        content_widget = QWidget()
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # İçerik widget'ı - sadece bir kez
+        if self.content_widget is None:
+            self.content_widget = QWidget()
+            self.content_layout = QVBoxLayout()
+            self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            self.content_widget.setLayout(self.content_layout)
+            self.scroll_area.setWidget(self.content_widget)
+        
+        # Grupları doldur
+        self.populate_groups()
+    
+    def populate_groups(self):
+        """Bileşen gruplarını oluştur ve ekle"""
+        layout = self.content_layout
         
         # Input/Output (EN ÜSTTE)
         io_group = self.create_group(tr("io_components"), [
@@ -150,12 +163,6 @@ class ComponentPalette(QWidget):
             ("MERGER", tr("merger")),
         ])
         layout.addWidget(other_group)
-        
-        content_widget.setLayout(layout)
-        scroll.setWidget(content_widget)
-        
-        main_layout.addWidget(scroll)
-        self.setLayout(main_layout)
         
     def create_group(self, title, components):
         group = QGroupBox(title)
