@@ -450,6 +450,129 @@ class Canvas(QWidget):
         
         # Pinleri çiz
         self.draw_pins(painter, component)
+    
+    def draw_vcc(self, painter, component):
+        """VCC bileşeni çiz - her zaman 1"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Her zaman yeşil (1)
+        painter.setBrush(QBrush(QColor(50, 205, 50)))
+        painter.drawRoundedRect(rect, 5, 5)
+        
+        # VCC sembolü
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "VCC\n1")
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_ground(self, painter, component):
+        """GROUND bileşeni çiz - her zaman 0"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Her zaman gri (0)
+        painter.setBrush(QBrush(QColor(85, 85, 85)))
+        painter.drawRoundedRect(rect, 5, 5)
+        
+        # GND sembolü
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "GND\n0")
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_constant(self, painter, component):
+        """CONSTANT bileşeni çiz - ayarlanabilir sabit"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Değere göre renk
+        const_val = bool(component.constant_value) if hasattr(component, 'constant_value') else True
+        if const_val:
+            painter.setBrush(QBrush(QColor(50, 205, 50)))
+        else:
+            painter.setBrush(QBrush(QColor(85, 85, 85)))
+        
+        painter.drawRoundedRect(rect, 5, 5)
+        
+        # CONST ve değer
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setPointSize(8)
+        painter.setFont(font)
+        painter.drawText(component.x, component.y + 15, component.width, 15, 
+                        Qt.AlignmentFlag.AlignCenter, "CONST")
+        
+        font.setPointSize(12)
+        font.setBold(True)
+        painter.setFont(font)
+        status = "1" if const_val else "0"
+        painter.drawText(component.x, component.y + 25, component.width, 20,
+                        Qt.AlignmentFlag.AlignCenter, status)
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
+    
+    def draw_probe(self, painter, component):
+        """PROBE bileşeni çiz - logic göstergesi"""
+        rect = QRect(component.x, component.y, component.width, component.height)
+        
+        if component in self.selected_components:
+            painter.setPen(QPen(QColor(100, 150, 255), 3))
+        else:
+            painter.setPen(QPen(QColor(200, 200, 200), 2))
+        
+        # Probe değerine göre renk
+        probe_val = bool(component.probe_value) if hasattr(component, 'probe_value') else False
+        if probe_val:
+            painter.setBrush(QBrush(QColor(50, 205, 50)))
+        else:
+            painter.setBrush(QBrush(QColor(85, 85, 85)))
+        
+        # Daire şeklinde probe
+        center = rect.center()
+        radius = min(component.width, component.height) // 2 - 5
+        painter.drawEllipse(center, radius, radius)
+        
+        # PROBE ve değer
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setPointSize(8)
+        painter.setFont(font)
+        painter.drawText(component.x, component.y + 5, component.width, 15,
+                        Qt.AlignmentFlag.AlignCenter, "PROBE")
+        
+        font.setPointSize(14)
+        font.setBold(True)
+        painter.setFont(font)
+        status = "1" if probe_val else "0"
+        painter.drawText(component.x, component.y + 20, component.width, 25,
+                        Qt.AlignmentFlag.AlignCenter, status)
+        
+        # Pinleri çiz
+        self.draw_pins(painter, component)
         
     def draw_pins(self, painter, component):
         pin_radius = 6  # Biraz daha büyük pinler
@@ -661,6 +784,12 @@ class Canvas(QWidget):
                     component.toggle()
                     # Simülasyonu tetikle - sinyal yayılımı
                     self.circuit.step()
+                    self.update()
+                    return
+                
+                # CONSTANT toggle (simülasyon durdurulduğunda)
+                if component.type == "CONSTANT" and not self.circuit.is_running:
+                    component.toggle()
                     self.update()
                     return
                 

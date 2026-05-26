@@ -63,35 +63,22 @@ class Clock(Component):
         self.add_output_pin("Out")
         
         self.state = False
-        self.frequency = 1  # Hz
+        self.frequency = 1  # Hz (kullanılmıyor, global clock tarafından yönetiliyor)
         self.tick_count = 0
-        self.half_period_ms = 500  # 1 Hz için 500ms yarım periyot
-        self.last_toggle_time = 0
         
     def set_frequency(self, freq):
-        """Frekansı ayarla"""
+        """Frekansı ayarla (şimdilik sadece sakla)"""
         self.frequency = freq
-        self.half_period_ms = int(1000 / (2 * freq))
         
     def update(self):
-        """Simülasyon her adımında çağrılır - otomatik toggle"""
-        # Simülasyon çalışıyorsa otomatik toggle
-        import time
-        current_time = int(time.time() * 1000)  # ms cinsinden
-        
-        if current_time - self.last_toggle_time >= self.half_period_ms:
-            self.state = not self.state
-            self.tick_count += 1
-            self.last_toggle_time = current_time
-        
-        self.output_pins[0].set_value(self.state)
+        """Çıkış pinini güncelle - state global clock tarafından yönetiliyor"""
+        self.output_pins[0].value = bool(self.state)
         
     def reset(self):
         """Clock'u sıfırla"""
         super().reset()
         self.state = False
         self.tick_count = 0
-        self.last_toggle_time = 0
 
 
 class InputPin(Component):
@@ -144,3 +131,66 @@ class OutputPin(Component):
         """Özel isim ata"""
         self.custom_name = name
         self.name = name
+
+
+class VCC(Component):
+    """VCC - Sabit 1 (High) kaynağı"""
+    def __init__(self, x=0, y=0):
+        super().__init__("VCC", x, y, 60, 40)
+        self.type = "VCC"
+        # 0 giriş, 1 çıkış
+        self.add_output_pin("Out")
+        
+    def update(self):
+        """Her zaman 1 (True) üret"""
+        self.output_pins[0].value = True
+
+
+class Ground(Component):
+    """GROUND - Sabit 0 (Low) kaynağı"""
+    def __init__(self, x=0, y=0):
+        super().__init__("GND", x, y, 60, 40)
+        self.type = "GROUND"
+        # 0 giriş, 1 çıkış
+        self.add_output_pin("Out")
+        
+    def update(self):
+        """Her zaman 0 (False) üret"""
+        self.output_pins[0].value = False
+
+
+class Constant(Component):
+    """CONSTANT - Ayarlanabilir sabit değer"""
+    def __init__(self, x=0, y=0):
+        super().__init__("CONST", x, y, 70, 50)
+        self.type = "CONSTANT"
+        # 0 giriş, 1 çıkış
+        self.add_output_pin("Out")
+        self.constant_value = True  # Varsayılan: 1
+        
+    def toggle(self):
+        """Sabit değeri değiştir (0/1)"""
+        self.constant_value = not self.constant_value
+        self.update()
+        
+    def update(self):
+        """Sabit değeri üret"""
+        self.output_pins[0].value = bool(self.constant_value)
+
+
+class Probe(Component):
+    """PROBE - Logic göstergesi"""
+    def __init__(self, x=0, y=0):
+        super().__init__("PROBE", x, y, 70, 50)
+        self.type = "PROBE"
+        # 1 giriş, 0 çıkış
+        self.add_input_pin("In")
+        self.probe_value = False  # Görüntülenen değer
+        
+    def update(self):
+        """Giriş sinyalini oku ve sakla"""
+        try:
+            if len(self.input_pins) > 0:
+                self.probe_value = bool(self.input_pins[0].value)
+        except (IndexError, AttributeError):
+            self.probe_value = False

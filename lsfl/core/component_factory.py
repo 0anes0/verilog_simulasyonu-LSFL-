@@ -130,6 +130,14 @@ class ComponentFactory:
             return InputPin(x, y)
         elif component_type == "OUTPUT_PIN":
             return OutputPin(x, y)
+        elif component_type == "VCC":
+            return VCC(x, y)
+        elif component_type == "GROUND":
+            return Ground(x, y)
+        elif component_type == "CONSTANT":
+            return Constant(x, y)
+        elif component_type == "PROBE":
+            return Probe(x, y)
             
         else:
             # Varsayılan bileşen

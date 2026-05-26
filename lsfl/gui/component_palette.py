@@ -119,12 +119,12 @@ class ComponentPalette(QWidget):
         
         # Diğer
         other_group = self.create_group("Diğer", [
+            ("VCC", "VCC (Power)"),
+            ("GROUND", "Ground (GND)"),
+            ("CONSTANT", "Constant"),
+            ("PROBE", "Probe"),
             ("SPLITTER", "Splitter"),
             ("MERGER", "Merger"),
-            ("CONSTANT", "Sabit Değer"),
-            ("PROBE", "Probe"),
-            ("GROUND", "Ground"),
-            ("VCC", "VCC"),
         ])
         layout.addWidget(other_group)
         

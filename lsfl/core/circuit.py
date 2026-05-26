@@ -70,12 +70,6 @@ class Circuit:
             
     def start_simulation(self):
         self.is_running = True
-        # Clock bileşenlerini sıfırla
-        import time
-        current_time = int(time.time() * 1000)
-        for component in self.components:
-            if component.type == "CLOCK":
-                component.last_toggle_time = current_time
         # İlk durumu hesapla
         self.step()
         # Timer'ı başlat - daha hızlı güncelleme için 50ms

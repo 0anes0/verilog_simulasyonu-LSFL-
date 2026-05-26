@@ -243,11 +243,41 @@ class MainWindow(QMainWindow):
             self.sim_action.setText("▶ Simülasyon Başlat")
             self.statusBar.showMessage("⏹ DURDURULDU - Sadece devre düzenleme modu")
             self.canvas.cancel_placing()
+            # Global clock timer'ı durdur
+            if hasattr(self, 'global_clock_timer'):
+                self.global_clock_timer.stop()
         else:
             self.canvas.cancel_placing()
             self.circuit.start_simulation()
             self.sim_action.setText("⏸ Simülasyon Durdur")
             self.statusBar.showMessage("▶ ÇALIŞIYOR - Clock otomatik, Input/Switch değiştirilebilir")
+            # Global clock timer'ı başlat
+            self.start_global_clock()
+        self.canvas.update()
+    
+    def start_global_clock(self):
+        """Global clock generator - tüm Clock bileşenlerini senkronize çalıştır"""
+        from PyQt6.QtCore import QTimer
+        
+        if not hasattr(self, 'global_clock_timer'):
+            self.global_clock_timer = QTimer()
+            self.global_clock_timer.timeout.connect(self.tick_global_clock)
+        
+        # 500ms periyot (1 Hz clock için)
+        self.global_clock_timer.start(500)
+    
+    def tick_global_clock(self):
+        """Her timer tick'inde tüm Clock bileşenlerini toggle et ve devreyi güncelle"""
+        # 1. Tüm Clock bileşenlerini bul ve toggle et
+        for component in self.circuit.components:
+            if component.type == "CLOCK":
+                component.state = not component.state
+                component.output_pins[0].value = bool(component.state)
+        
+        # 2. ZORUNLU: Devreyi evaluate et (sinyal yayılımı)
+        self.circuit.step()
+        
+        # 3. UI'ı güncelle (renkleri yenile)
         self.canvas.update()
         
     def reset_simulation(self):
