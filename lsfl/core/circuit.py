@@ -14,8 +14,35 @@ class Circuit:
         self.is_running = False
         self.simulation_timer = None
         self.filename = None
+        # Otomatik isimlendirme için sayaçlar
+        self.component_counters = {}
         
     def add_component(self, component):
+        """Bileşen ekle ve otomatik isim ver"""
+        # Otomatik eşsiz isim oluştur
+        comp_type = component.type
+        if comp_type not in self.component_counters:
+            self.component_counters[comp_type] = 0
+        
+        self.component_counters[comp_type] += 1
+        
+        # Kısa isim formatı
+        type_prefix = {
+            'INPUT_PIN': 'IN',
+            'OUTPUT_PIN': 'OUT',
+            'SWITCH': 'SW',
+            'LED': 'LED',
+            'CLOCK': 'CLK',
+            'AND': 'AND',
+            'OR': 'OR',
+            'NOT': 'NOT',
+            'NAND': 'NAND',
+            'NOR': 'NOR',
+            'XOR': 'XOR',
+            'XNOR': 'XNOR',
+        }.get(comp_type, comp_type[:3].upper())
+        
+        component.name = f"{type_prefix}_{self.component_counters[comp_type]}"
         self.components.append(component)
         
     def remove_component(self, component):
@@ -63,19 +90,27 @@ class Circuit:
             self.simulation_timer.stop()
             
     def step(self):
-        """Bir simülasyon adımı çalıştır"""
-        # Çoklu geçiş ile sinyallerin yayılmasını sağla
-        # (kombinasyonel devreler için gerekli)
-        max_iterations = 10
-        
-        for iteration in range(max_iterations):
-            # Önce tüm kabloları güncelle
-            for wire in self.wires:
-                wire.update()
-            
-            # Sonra tüm bileşenleri güncelle
-            for component in self.components:
+        """Bir simülasyon adımı çalıştır - Doğru sinyal yayılımı"""
+        # 1. Önce tüm bileşenlerin mantığını çalıştır
+        for component in self.components:
+            try:
                 component.update()
+            except Exception as e:
+                print(f"Bileşen güncelleme hatası {component.name}: {e}")
+        
+        # 2. Kabloları güncelle (sinyal yayılımı)
+        for wire in self.wires:
+            try:
+                wire.update()
+            except Exception as e:
+                print(f"Kablo güncelleme hatası: {e}")
+        
+        # 3. Kombinasyonel devreler için ikinci geçiş
+        for component in self.components:
+            try:
+                component.update()
+            except Exception as e:
+                pass
             
     def reset(self):
         """Simülasyonu sıfırla"""

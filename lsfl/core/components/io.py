@@ -14,10 +14,22 @@ class Switch(Component):
         self.add_input_pin("In")
         self.add_output_pin("Out")
         self.state = True  # Varsayılan: ON (kapalı devre)
+        self.is_pressed = False  # Görsel basılı durumu
         
     def toggle(self):
         self.state = not self.state
         self.update()
+    
+    def press(self):
+        """Butona basıldı - görsel ve mantıksal"""
+        self.is_pressed = True
+        self.state = True
+        self.update()
+    
+    def release(self):
+        """Buton bırakıldı - görsel güncelleme"""
+        self.is_pressed = False
+        # State değişmez (toggle switch gibi)
         
     def update(self):
         """Switch ON ise: Out = In, Switch OFF ise: Out = 0 (açık devre)"""
@@ -87,11 +99,17 @@ class InputPin(Component):
         self.custom_name = "IN"
         
     def toggle(self):
+        """Durumu değiştir ve sinyali yay"""
         self.state = not self.state
         self.update()
         
     def update(self):
-        self.output_pins[0].set_value(self.state)
+        """Çıkış pinini güncelle"""
+        try:
+            if len(self.output_pins) > 0:
+                self.output_pins[0].set_value(bool(self.state))
+        except (IndexError, AttributeError):
+            pass
     
     def set_custom_name(self, name):
         """Özel isim ata"""
@@ -107,8 +125,13 @@ class OutputPin(Component):
         self.custom_name = "OUT"
         
     def update(self):
-        # Output sadece görselleştirme için
-        pass
+        """Output pin - giriş sinyalini oku (görselleştirme için)"""
+        # Giriş değerini oku ama hiçbir şey yapma
+        try:
+            if len(self.input_pins) > 0:
+                _ = self.input_pins[0].value
+        except (IndexError, AttributeError):
+            pass
     
     def set_custom_name(self, name):
         """Özel isim ata"""

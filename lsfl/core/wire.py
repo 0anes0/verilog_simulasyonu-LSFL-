@@ -8,6 +8,7 @@ class Wire:
         self.from_pin = from_pin
         self.to_pin = to_pin
         self.value = False
+        self.vertices = []  # Kablo köşe noktaları (Proteus-style routing)
         
         # Pin'lere kabloyu ekle
         from_pin.connected_wires.append(self)

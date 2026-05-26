@@ -14,9 +14,14 @@ class ANDGate(Component):
         self.add_output_pin("Y")
         
     def update(self):
-        a = self.input_pins[0].value
-        b = self.input_pins[1].value
-        self.output_pins[0].set_value(a and b)
+        """AND mantığı: Y = A AND B"""
+        try:
+            a = bool(self.input_pins[0].value) if len(self.input_pins) > 0 else False
+            b = bool(self.input_pins[1].value) if len(self.input_pins) > 1 else False
+            result = a and b
+            self.output_pins[0].set_value(result)
+        except (IndexError, AttributeError):
+            self.output_pins[0].set_value(False)
 
 
 class ORGate(Component):
@@ -28,9 +33,14 @@ class ORGate(Component):
         self.add_output_pin("Y")
         
     def update(self):
-        a = self.input_pins[0].value
-        b = self.input_pins[1].value
-        self.output_pins[0].set_value(a or b)
+        """OR mantığı: Y = A OR B"""
+        try:
+            a = bool(self.input_pins[0].value) if len(self.input_pins) > 0 else False
+            b = bool(self.input_pins[1].value) if len(self.input_pins) > 1 else False
+            result = a or b
+            self.output_pins[0].set_value(result)
+        except (IndexError, AttributeError):
+            self.output_pins[0].set_value(False)
 
 
 class NOTGate(Component):
@@ -41,8 +51,13 @@ class NOTGate(Component):
         self.add_output_pin("Y")
         
     def update(self):
-        a = self.input_pins[0].value
-        self.output_pins[0].set_value(not a)
+        """NOT mantığı: Y = NOT A"""
+        try:
+            a = bool(self.input_pins[0].value) if len(self.input_pins) > 0 else False
+            result = not a
+            self.output_pins[0].set_value(result)
+        except (IndexError, AttributeError):
+            self.output_pins[0].set_value(True)
 
 
 class NANDGate(Component):

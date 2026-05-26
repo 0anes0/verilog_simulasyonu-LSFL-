@@ -241,15 +241,13 @@ class MainWindow(QMainWindow):
         if self.circuit.is_running:
             self.circuit.stop_simulation()
             self.sim_action.setText("▶ Simülasyon Başlat")
-            self.statusBar.showMessage("⏹ DURDURULDU - Sadece devre düzenleme modu (input değiştirilemez)")
-            # Yerleştirme modunu iptal et
+            self.statusBar.showMessage("⏹ DURDURULDU - Sadece devre düzenleme modu")
             self.canvas.cancel_placing()
         else:
-            # Yerleştirme modunu iptal et
             self.canvas.cancel_placing()
             self.circuit.start_simulation()
             self.sim_action.setText("⏸ Simülasyon Durdur")
-            self.statusBar.showMessage("▶ ÇALIŞIYOR - Input/Switch değiştirilebilir, Clock otomatik çalışıyor")
+            self.statusBar.showMessage("▶ ÇALIŞIYOR - Clock otomatik, Input/Switch değiştirilebilir")
         self.canvas.update()
         
     def reset_simulation(self):

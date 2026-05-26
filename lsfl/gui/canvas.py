@@ -42,8 +42,11 @@ class Canvas(QWidget):
         self.placing_component = None
         self.placing_component_type = None
         
-        # Kablo köşe noktaları
-        self.wire_waypoints = []
+        # Kablo köşe noktaları (Vertex sistemi)
+        self.wire_vertices = []  # Kalıcı köşe noktaları
+        self.temp_wire_path = []  # Geçici kablo yolu
+        self.dragging_vertex = None  # Sürüklenen vertex
+        self.dragging_vertex_index = None
         
         # Undo/Redo
         self.undo_stack = []
@@ -150,21 +153,33 @@ class Canvas(QWidget):
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # Bileşen adı (üstte, pinlerle çakışmayacak şekilde)
+        # Bileşen adı (düzenlenebilir etiket)
         painter.setPen(QPen(QColor(255, 255, 255)))
         font = painter.font()
-        font.setPointSize(9)
+        font.setPointSize(8)
         font.setBold(True)
         painter.setFont(font)
-        name_rect = QRect(component.x, component.y + 5, component.width, 20)
+        
+        # İsmi bileşenin üstünde göster
+        name_rect = QRect(component.x, component.y - 18, component.width, 15)
+        
+        # Eğer bu bileşen düzenleme modundaysa farklı renk
+        if hasattr(self, 'editing_component') and self.editing_component == component:
+            painter.setPen(QPen(QColor(100, 200, 255)))
+            painter.drawRect(name_rect)
+        
+        painter.setPen(QPen(QColor(220, 220, 220)))
         painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, component.name)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
     
     def draw_switch(self, painter, component):
-        """Switch bileşenini özel çiz"""
+        """İnteraktif Switch/Button çiz"""
         rect = QRect(component.x, component.y, component.width, component.height)
+        
+        # Basılı durumunu kontrol et
+        is_pressed = hasattr(component, 'is_pressed') and component.is_pressed
         
         # Seçili mi?
         if component in self.selected_components:
@@ -172,18 +187,33 @@ class Canvas(QWidget):
         else:
             painter.setPen(QPen(QColor(200, 200, 200), 2))
         
-        # Switch durumuna göre renk
-        if component.state:
+        # Switch durumuna ve basılı durumuna göre renk
+        if is_pressed:
+            # Basılı: Koyu yeşil
+            painter.setBrush(QBrush(QColor(60, 150, 60)))
+        elif component.state:
+            # ON: Açık yeşil
             painter.setBrush(QBrush(QColor(100, 200, 100)))
         else:
+            # OFF: Gri
             painter.setBrush(QBrush(QColor(80, 80, 80)))
         
-        painter.drawRoundedRect(rect, 5, 5)
+        # 3D buton efekti
+        if is_pressed:
+            painter.drawRoundedRect(rect.adjusted(2, 2, -2, -2), 5, 5)
+        else:
+            painter.drawRoundedRect(rect, 5, 5)
+            # Gölge efekti
+            painter.setPen(QPen(QColor(40, 40, 40), 1))
+            painter.drawRoundedRect(rect.adjusted(2, 2, 2, 2), 5, 5)
         
         # Switch metni
         painter.setPen(QPen(QColor(255, 255, 255)))
+        font = painter.font()
+        font.setBold(True)
+        painter.setFont(font)
         status = "ON" if component.state else "OFF"
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, f"Switch\n{status}")
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, status)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -217,7 +247,7 @@ class Canvas(QWidget):
         self.draw_pins(painter, component)
     
     def draw_logic_gate(self, painter, component):
-        """Mantık kapısı çiz - yazılı isimlerle"""
+        """IEEE standart mantık kapısı çiz"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -226,17 +256,64 @@ class Canvas(QWidget):
         
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # Dikdörtgen şekil
-        rect = QRect(component.x, component.y, component.width, component.height)
-        painter.drawRect(rect)
+        # IEEE standart şekiller (QPainterPath ile)
+        path = QPainterPath()
+        x, y, w, h = component.x, component.y, component.width, component.height
         
-        # Kapı ismi (büyük ve net)
-        painter.setPen(QPen(QColor(255, 255, 255)))
-        font = painter.font()
-        font.setPointSize(10)
-        font.setBold(True)
-        painter.setFont(font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, component.type)
+        if component.type == "AND":
+            # AND kapısı: D şekli
+            path.moveTo(x, y)
+            path.lineTo(x + w * 0.6, y)
+            path.arcTo(x + w * 0.2, y, w * 0.8, h, 90, -180)
+            path.lineTo(x, y + h)
+            path.closeSubpath()
+            
+        elif component.type == "OR":
+            # OR kapısı: Kavisli şekil
+            path.moveTo(x, y)
+            path.quadTo(x + w * 0.3, y + h * 0.5, x, y + h)
+            path.quadTo(x + w * 0.5, y + h, x + w, y + h * 0.5)
+            path.quadTo(x + w * 0.5, y, x, y)
+            
+        elif component.type in ["NAND", "NOR"]:
+            # NAND/NOR: AND/OR + inverter balonu
+            if component.type == "NAND":
+                path.moveTo(x, y)
+                path.lineTo(x + w * 0.5, y)
+                path.arcTo(x + w * 0.1, y, w * 0.7, h, 90, -180)
+                path.lineTo(x, y + h)
+                path.closeSubpath()
+            else:
+                path.moveTo(x, y)
+                path.quadTo(x + w * 0.3, y + h * 0.5, x, y + h)
+                path.quadTo(x + w * 0.4, y + h, x + w * 0.85, y + h * 0.5)
+                path.quadTo(x + w * 0.4, y, x, y)
+            
+            # Inverter balonu
+            painter.drawPath(path)
+            painter.setBrush(QBrush(QColor(60, 60, 60)))
+            painter.drawEllipse(QPoint(x + w - 6, y + h // 2), 6, 6)
+            painter.setBrush(QBrush(QColor(60, 60, 60)))
+            
+        elif component.type in ["XOR", "XNOR"]:
+            # XOR: Çift kavisli
+            path.moveTo(x + 10, y)
+            path.quadTo(x + w * 0.4, y + h * 0.5, x + 10, y + h)
+            path.quadTo(x + w * 0.5, y + h, x + w, y + h * 0.5)
+            path.quadTo(x + w * 0.5, y, x + 10, y)
+            
+            # Ekstra giriş kavisi
+            painter.drawPath(path)
+            painter.drawArc(x, y, 20, h, 90 * 16, -180 * 16)
+            
+            if component.type == "XNOR":
+                painter.setBrush(QBrush(QColor(60, 60, 60)))
+                painter.drawEllipse(QPoint(x + w - 6, y + h // 2), 6, 6)
+            
+            painter.setBrush(QBrush(QColor(60, 60, 60)))
+        
+        if component.type not in ["NAND", "NOR", "XOR", "XNOR"]:
+            painter.drawPath(path)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -429,6 +506,7 @@ class Canvas(QWidget):
             painter.drawText(component.x + component.width - text_width - 10, y + 3, pin.name)
             
     def draw_wire(self, painter, wire):
+        """Vertex'lerle birlikte kablo çiz"""
         # Kablo değerine göre renk
         if wire.value:
             painter.setPen(QPen(QColor(100, 255, 100), 3))
@@ -439,71 +517,61 @@ class Canvas(QWidget):
         start = wire.from_pin.get_position()
         end = wire.to_pin.get_position()
         
-        # Proteus tarzı ortogonal kablo yönlendirmesi
-        # Yatay mesafe
-        dx = end.x() - start.x()
-        dy = end.y() - start.y()
-        
-        # Minimum segment uzunluğu
-        min_segment = 30
-        
-        if abs(dx) > abs(dy):
-            # Yatay öncelikli
-            mid_x = start.x() + dx // 2
+        # Vertex'lerle yol oluştur
+        if hasattr(wire, 'vertices') and wire.vertices:
+            path_points = [start] + wire.vertices + [end]
             
-            # İlk yatay segment
-            painter.drawLine(start.x(), start.y(), mid_x, start.y())
-            # Dikey segment
-            painter.drawLine(mid_x, start.y(), mid_x, end.y())
-            # Son yatay segment
-            painter.drawLine(mid_x, end.y(), end.x(), end.y())
+            # Tüm segmentleri çiz
+            for i in range(len(path_points) - 1):
+                painter.drawLine(path_points[i], path_points[i + 1])
+            
+            # Vertex noktalarını çiz (düzenlenebilir)
+            painter.setBrush(QBrush(QColor(100, 100, 100)))
+            for vertex in wire.vertices:
+                painter.drawEllipse(vertex, 4, 4)
         else:
-            # Dikey öncelikli
-            mid_y = start.y() + dy // 2
-            
-            # İlk dikey segment
-            painter.drawLine(start.x(), start.y(), start.x(), mid_y)
-            # Yatay segment
-            painter.drawLine(start.x(), mid_y, end.x(), mid_y)
-            # Son dikey segment
-            painter.drawLine(end.x(), mid_y, end.x(), end.y())
+            # Vertex yoksa otomatik orthogonal routing
+            intermediate = self.calculate_orthogonal_point(start, end)
+            painter.drawLine(start, intermediate)
+            painter.drawLine(intermediate, end)
         
     def draw_temp_wire(self, painter):
+        """Proteus-style orthogonal routing ile geçici kablo çiz"""
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
         
-        # Köşe noktaları varsa onları kullan
-        if self.wire_waypoints:
-            # İlk segment
-            prev_point = start
-            for waypoint in self.wire_waypoints:
-                painter.drawLine(prev_point, waypoint)
-                # Köşe noktasını işaretle
-                painter.setBrush(QBrush(QColor(150, 150, 255)))
-                painter.drawEllipse(waypoint, 3, 3)
-                prev_point = waypoint
-            
-            # Son segment (mouse pozisyonuna)
-            if self.temp_wire_end:
-                painter.drawLine(prev_point, self.temp_wire_end)
+        # Tüm yol noktalarını topla
+        path_points = [start] + self.wire_vertices
+        
+        if self.temp_wire_end:
+            # Son noktaya kadar Manhattan routing
+            if path_points:
+                last_point = path_points[-1]
+                # Orthogonal (90 derece) kablo çizimi
+                intermediate = self.calculate_orthogonal_point(last_point, self.temp_wire_end)
+                path_points.append(intermediate)
+            path_points.append(self.temp_wire_end)
+        
+        # Yolu çiz
+        for i in range(len(path_points) - 1):
+            painter.drawLine(path_points[i], path_points[i + 1])
+        
+        # Vertex noktalarını işaretle
+        painter.setBrush(QBrush(QColor(150, 150, 255)))
+        for vertex in self.wire_vertices:
+            painter.drawEllipse(vertex, 5, 5)
+    
+    def calculate_orthogonal_point(self, start, end):
+        """Manhattan routing için ara nokta hesapla"""
+        dx = abs(end.x() - start.x())
+        dy = abs(end.y() - start.y())
+        
+        if dx > dy:
+            # Önce yatay git
+            return QPoint(end.x(), start.y())
         else:
-            # Köşe noktası yoksa direkt çiz
-            end = self.temp_wire_end
-            dx = end.x() - start.x()
-            dy = end.y() - start.y()
-            
-            if abs(dx) > abs(dy):
-                # Yatay öncelikli
-                mid_x = start.x() + dx // 2
-                painter.drawLine(start.x(), start.y(), mid_x, start.y())
-                painter.drawLine(mid_x, start.y(), mid_x, end.y())
-                painter.drawLine(mid_x, end.y(), end.x(), end.y())
-            else:
-                # Dikey öncelikli
-                mid_y = start.y() + dy // 2
-                painter.drawLine(start.x(), start.y(), start.x(), mid_y)
-                painter.drawLine(start.x(), mid_y, end.x(), mid_y)
-                painter.drawLine(end.x(), mid_y, end.x(), end.y())
+            # Önce dikey git
+            return QPoint(start.x(), end.y())
         
     def mousePressEvent(self, event: QMouseEvent):
         # Simülasyon durdurulduğunda düzenlemeyi engelle (sadece input değiştirme)
@@ -528,45 +596,54 @@ class Canvas(QWidget):
             pin = self.get_pin_at(pos)
             if pin:
                 if self.connecting_from is None:
-                    # Kablo bağlantısı başlat - her pin'den başlayabilir
+                    # Kablo bağlantısı başlat
                     self.connecting_from = pin
                     self.temp_wire_end = pos
-                    self.wire_waypoints = []
+                    self.wire_vertices = []
                 else:
                     # Kablo bağlantısını tamamla
-                    # Aynı pin değilse ve uygun yönde ise bağla
                     if pin != self.connecting_from:
-                        # Çıkış -> Giriş veya Giriş -> Çıkış
                         if self.connecting_from.is_input != pin.is_input:
-                            # Doğru yönde bağlantı yap (her zaman çıkış -> giriş)
+                            # Kabloyu vertex'lerle birlikte kaydet
                             if self.connecting_from.is_input:
-                                self.circuit.add_wire(pin, self.connecting_from)
+                                wire = self.circuit.add_wire(pin, self.connecting_from)
                             else:
-                                self.circuit.add_wire(self.connecting_from, pin)
+                                wire = self.circuit.add_wire(self.connecting_from, pin)
+                            
+                            # Vertex'leri kabloya ekle
+                            if wire and hasattr(wire, 'vertices'):
+                                wire.vertices = self.wire_vertices.copy()
+                        
                         self.connecting_from = None
                         self.temp_wire_end = None
-                        self.wire_waypoints = []
+                        self.wire_vertices = []
                         self.update()
                     else:
-                        # Aynı pin, iptal et
                         self.connecting_from = None
                         self.temp_wire_end = None
-                        self.wire_waypoints = []
+                        self.wire_vertices = []
                         self.update()
                 return
             
-            # Kablo çizimi sırasında boşluğa tıklama - köşe noktası ekle
+            # Kablo çizimi sırasında boşluğa tıklama - Vertex ekle
             if self.connecting_from:
-                self.wire_waypoints.append(pos)
+                # Grid'e snap yap
+                snapped_pos = self.snap_to_grid(pos)
+                self.wire_vertices.append(snapped_pos)
                 self.update()
                 return
             
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
-                # Çift tıklama kontrolü için - tek tıklamada sadece seçim/toggle
-                # Switch ve INPUT_PIN bileşenine tıklama - toggle (SADECE simülasyon çalışırken)
-                if component.type in ["SWITCH", "INPUT_PIN"] and self.circuit.is_running:
+                # Switch/Button basma (simülasyon çalışırken)
+                if component.type == "SWITCH" and self.circuit.is_running:
+                    component.press()
+                    self.update()
+                    return
+                
+                # INPUT_PIN toggle (simülasyon çalışırken)
+                if component.type == "INPUT_PIN" and self.circuit.is_running:
                     component.toggle()
                     self.update()
                     return
@@ -678,6 +755,13 @@ class Canvas(QWidget):
             
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
+            # Switch/Button bırakma
+            pos = self.map_to_canvas(event.pos())
+            component = self.get_component_at(pos)
+            if component and component.type == "SWITCH":
+                component.release()
+                self.update()
+            
             self.dragging_component = None
             
             # Kare seçim tamamlandı
@@ -700,15 +784,37 @@ class Canvas(QWidget):
             self.setCursor(Qt.CursorShape.ArrowCursor)
     
     def mouseDoubleClickEvent(self, event: QMouseEvent):
-        """Çift tıklama - bileşen özelliklerini düzenle"""
+        """Çift tıklama - bileşen ismini düzenle veya özellikleri aç"""
         if self.circuit.is_running:
-            return  # Simülasyon çalışırken özellik değiştirme
+            return
         
         pos = self.map_to_canvas(event.pos())
         component = self.get_component_at(pos)
         
         if component:
-            self.show_component_properties(component)
+            # İsim alanına tıklandı mı kontrol et
+            name_rect = QRect(component.x, component.y - 18, component.width, 15)
+            if name_rect.contains(pos):
+                # İsim düzenleme modu
+                self.edit_component_name(component)
+            else:
+                # Özellikler dialogu
+                self.show_component_properties(component)
+    
+    def edit_component_name(self, component):
+        """Bileşen ismini düzenle"""
+        from PyQt6.QtWidgets import QInputDialog
+        
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Bileşen İsmini Düzenle",
+            f"{component.type} için yeni isim:",
+            text=component.name
+        )
+        
+        if ok and new_name:
+            component.name = new_name
+            self.update()
             
     def wheelEvent(self, event: QWheelEvent):
         # Zoom (Ctrl tuşu ile)
@@ -748,6 +854,12 @@ class Canvas(QWidget):
         x = (screen_pos.x() - self.offset.x()) / self.zoom
         y = (screen_pos.y() - self.offset.y()) / self.zoom
         return QPoint(int(x), int(y))
+    
+    def snap_to_grid(self, pos):
+        """Pozisyonu grid'e hizala"""
+        x = round(pos.x() / self.grid_size) * self.grid_size
+        y = round(pos.y() / self.grid_size) * self.grid_size
+        return QPoint(x, y)
     
     def get_pin_at(self, pos):
         pin_radius = 15  # Çok daha büyük tıklama alanı
