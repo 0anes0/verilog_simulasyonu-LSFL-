@@ -845,13 +845,7 @@ class Canvas(QWidget):
                 painter.setBrush(QBrush(QColor(255, 200, 50)))
                 painter.drawEllipse(self.temp_wire_end, 6, 6)
         
-        # Snap to wire kontrolü (junction oluşturma)
-        if self.temp_wire_end:
-            nearby_wire = self.get_wire_at(self.temp_wire_end, tolerance=10)
-            if nearby_wire:
-                # Kabloya snap göstergesi
-                painter.setBrush(QBrush(QColor(255, 200, 50)))
-                painter.drawEllipse(self.temp_wire_end, 6, 6)
+        painter.setBrush(QBrush(QColor(60, 60, 60)))  # Brush'ı sıfırla
         
         # Kullanıcının tıkladığı tüm waypoint'leri koru
         path_points = [start] + self.wire_vertices
