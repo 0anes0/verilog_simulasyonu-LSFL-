@@ -204,7 +204,7 @@ class VerilogGenerator:
             code.append(f"  if ({rst})")
             code.append(f"    {q}_reg <= 1'b0;")
             code.append(f"  else begin")
-            code.append(f"    case ({{j}, {k}}})")
+            code.append(f"    case ({{{j}, {k}}})")
             code.append(f"      2'b00: {q}_reg <= {q}_reg;")
             code.append(f"      2'b01: {q}_reg <= 1'b0;")
             code.append(f"      2'b10: {q}_reg <= 1'b1;")
@@ -243,7 +243,7 @@ class VerilogGenerator:
             if qn:
                 code.append(f"assign {qn} = ~{q}_reg;")
             code.append(f"always @(posedge {clk}) begin")
-            code.append(f"  case ({{s}, {r}}})")
+            code.append(f"  case ({{{s}, {r}}})")
             code.append(f"    2'b00: {q}_reg <= {q}_reg;")
             code.append(f"    2'b01: {q}_reg <= 1'b0;")
             code.append(f"    2'b10: {q}_reg <= 1'b1;")
@@ -264,7 +264,7 @@ class VerilogGenerator:
             if qn:
                 code.append(f"assign {qn} = ~{q}_reg;")
             code.append(f"always @(*) begin")
-            code.append(f"  case ({{s}, {r}}})")
+            code.append(f"  case ({{{s}, {r}}})")
             code.append(f"    2'b00: {q}_reg = {q}_reg;")
             code.append(f"    2'b01: {q}_reg = 1'b0;")
             code.append(f"    2'b10: {q}_reg = 1'b1;")
