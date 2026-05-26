@@ -1145,7 +1145,7 @@ class Canvas(QWidget):
                 component.release()
                 self.update()
             
-            # Kablo çizimi tamamlandı - Junction kontrolü
+            # Kablo çizimi tamamlandı - Junction kontrolü ve Wire Splitting
             if self.connecting_from and self.temp_wire_end:
                 # Pin kontrolü
                 pin = self.get_pin_at(pos)
@@ -1166,11 +1166,10 @@ class Canvas(QWidget):
                         self.update()
                         return
                 
-                # Pin bulunamadı - Kablo kontrolü (Junction)
+                # Pin bulunamadı - Kablo kontrolü (Wire Splitting & Junction)
                 nearby_wire = self.get_wire_at(pos, tolerance=15)
                 if nearby_wire:
-                    # Kabloyu kabloya bağla - Junction oluştur
-                    # Yeni kablo oluştur (floating end ile)
+                    # WIRE SPLITTING: Kabloyu matematiksel olarak böl
                     if self.connecting_from.is_input:
                         # Input pin'den başlayan kablo olamaz, atla
                         self.connecting_from = None
@@ -1178,24 +1177,42 @@ class Canvas(QWidget):
                         self.wire_vertices = []
                         self.update()
                         return
-                    else:
-                        # Output pin'den başlayan kablo - floating end
-                        new_wire = Wire(self.connecting_from, None)
-                        new_wire.vertices = self.wire_vertices.copy()
-                        new_wire.is_floating = True
-                        self.circuit.wires.append(new_wire)
-                        
-                        # Junction noktasını hesapla (kabloya en yakın nokta)
-                        junction_pos = self.find_nearest_point_on_wire(nearby_wire, pos)
-                        
-                        # Junction oluştur
-                        self.circuit.add_junction(junction_pos, nearby_wire, new_wire)
-                        
-                        self.connecting_from = None
-                        self.temp_wire_end = None
-                        self.wire_vertices = []
-                        self.update()
-                        return
+                    
+                    # Junction noktasını hesapla (kabloya en yakın nokta)
+                    junction_pos = self.find_nearest_point_on_wire(nearby_wire, pos)
+                    
+                    # Alttaki kabloyu SPLIT et (iki parçaya böl)
+                    wire1, wire2, junction_idx = nearby_wire.split_at_point(junction_pos)
+                    
+                    # Eski kabloyu devreden çıkar
+                    if nearby_wire in self.circuit.wires:
+                        self.circuit.wires.remove(nearby_wire)
+                    
+                    # Yeni kabloları ekle
+                    self.circuit.wires.append(wire1)
+                    self.circuit.wires.append(wire2)
+                    
+                    # Yeni çizilen kabloyu oluştur (junction'a bağlı)
+                    new_wire = Wire(self.connecting_from, None)
+                    new_wire.vertices = self.wire_vertices.copy()
+                    new_wire.is_floating = True
+                    new_wire.junction_node = junction_pos
+                    self.circuit.wires.append(new_wire)
+                    
+                    # Junction noktasını kaydet
+                    if junction_pos not in self.circuit.junctions:
+                        self.circuit.junctions.append(junction_pos)
+                    
+                    # Junction bağlantılarını kaydet (3 kablo tek düğümde)
+                    if junction_pos not in self.circuit.junction_connections:
+                        self.circuit.junction_connections[junction_pos] = []
+                    self.circuit.junction_connections[junction_pos].extend([wire1, wire2, new_wire])
+                    
+                    self.connecting_from = None
+                    self.temp_wire_end = None
+                    self.wire_vertices = []
+                    self.update()
+                    return
             
             self.dragging_component = None
             self.dragging_wire = None

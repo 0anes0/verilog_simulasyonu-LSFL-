@@ -172,21 +172,216 @@ class VerilogGenerator:
             
         elif comp.type == "D_FLIPFLOP":
             q = self.get_pin_signal(comp.output_pins[0])
+            qn = self.get_pin_signal(comp.output_pins[1]) if len(comp.output_pins) > 1 else None
             d = self.get_pin_signal(comp.input_pins[0])
             clk = self.get_pin_signal(comp.input_pins[1])
             rst = self.get_pin_signal(comp.input_pins[2])
             
             code.append(f"reg {q}_reg;")
             code.append(f"assign {q} = {q}_reg;")
+            if qn:
+                code.append(f"assign {qn} = ~{q}_reg;")
             code.append(f"always @(posedge {clk} or posedge {rst}) begin")
             code.append(f"  if ({rst})")
             code.append(f"    {q}_reg <= 1'b0;")
             code.append(f"  else")
             code.append(f"    {q}_reg <= {d};")
             code.append(f"end")
+        
+        elif comp.type == "JK_FLIPFLOP":
+            q = self.get_pin_signal(comp.output_pins[0])
+            qn = self.get_pin_signal(comp.output_pins[1]) if len(comp.output_pins) > 1 else None
+            j = self.get_pin_signal(comp.input_pins[0])
+            k = self.get_pin_signal(comp.input_pins[1])
+            clk = self.get_pin_signal(comp.input_pins[2])
+            rst = self.get_pin_signal(comp.input_pins[3])
+            
+            code.append(f"reg {q}_reg;")
+            code.append(f"assign {q} = {q}_reg;")
+            if qn:
+                code.append(f"assign {qn} = ~{q}_reg;")
+            code.append(f"always @(posedge {clk} or posedge {rst}) begin")
+            code.append(f"  if ({rst})")
+            code.append(f"    {q}_reg <= 1'b0;")
+            code.append(f"  else begin")
+            code.append(f"    case ({{j}, {k}}})")
+            code.append(f"      2'b00: {q}_reg <= {q}_reg;")
+            code.append(f"      2'b01: {q}_reg <= 1'b0;")
+            code.append(f"      2'b10: {q}_reg <= 1'b1;")
+            code.append(f"      2'b11: {q}_reg <= ~{q}_reg;")
+            code.append(f"    endcase")
+            code.append(f"  end")
+            code.append(f"end")
+        
+        elif comp.type == "T_FLIPFLOP":
+            q = self.get_pin_signal(comp.output_pins[0])
+            qn = self.get_pin_signal(comp.output_pins[1]) if len(comp.output_pins) > 1 else None
+            t = self.get_pin_signal(comp.input_pins[0])
+            clk = self.get_pin_signal(comp.input_pins[1])
+            rst = self.get_pin_signal(comp.input_pins[2])
+            
+            code.append(f"reg {q}_reg;")
+            code.append(f"assign {q} = {q}_reg;")
+            if qn:
+                code.append(f"assign {qn} = ~{q}_reg;")
+            code.append(f"always @(posedge {clk} or posedge {rst}) begin")
+            code.append(f"  if ({rst})")
+            code.append(f"    {q}_reg <= 1'b0;")
+            code.append(f"  else if ({t})")
+            code.append(f"    {q}_reg <= ~{q}_reg;")
+            code.append(f"end")
+        
+        elif comp.type == "SR_FLIPFLOP":
+            q = self.get_pin_signal(comp.output_pins[0])
+            qn = self.get_pin_signal(comp.output_pins[1]) if len(comp.output_pins) > 1 else None
+            s = self.get_pin_signal(comp.input_pins[0])
+            r = self.get_pin_signal(comp.input_pins[1])
+            clk = self.get_pin_signal(comp.input_pins[2])
+            
+            code.append(f"reg {q}_reg;")
+            code.append(f"assign {q} = {q}_reg;")
+            if qn:
+                code.append(f"assign {qn} = ~{q}_reg;")
+            code.append(f"always @(posedge {clk}) begin")
+            code.append(f"  case ({{s}, {r}}})")
+            code.append(f"    2'b00: {q}_reg <= {q}_reg;")
+            code.append(f"    2'b01: {q}_reg <= 1'b0;")
+            code.append(f"    2'b10: {q}_reg <= 1'b1;")
+            code.append(f"    2'b11: {q}_reg <= {q}_reg; // Undefined, hold")
+            code.append(f"  endcase")
+            code.append(f"end")
+        
+        elif comp.type == "LATCH_SR":
+            # SR Latch - Cross-coupled NOR gates (structural)
+            q = self.get_pin_signal(comp.output_pins[0])
+            qn = self.get_pin_signal(comp.output_pins[1]) if len(comp.output_pins) > 1 else None
+            s = self.get_pin_signal(comp.input_pins[0])
+            r = self.get_pin_signal(comp.input_pins[1])
+            
+            # Asenkron SR Latch - always @(*) ile kombinasyonel
+            code.append(f"reg {q}_reg;")
+            code.append(f"assign {q} = {q}_reg;")
+            if qn:
+                code.append(f"assign {qn} = ~{q}_reg;")
+            code.append(f"always @(*) begin")
+            code.append(f"  case ({{s}, {r}}})")
+            code.append(f"    2'b00: {q}_reg = {q}_reg;")
+            code.append(f"    2'b01: {q}_reg = 1'b0;")
+            code.append(f"    2'b10: {q}_reg = 1'b1;")
+            code.append(f"    2'b11: {q}_reg = {q}_reg; // Undefined")
+            code.append(f"  endcase")
+            code.append(f"end")
+        
+        elif comp.type == "LATCH_D":
+            q = self.get_pin_signal(comp.output_pins[0])
+            qn = self.get_pin_signal(comp.output_pins[1]) if len(comp.output_pins) > 1 else None
+            d = self.get_pin_signal(comp.input_pins[0])
+            en = self.get_pin_signal(comp.input_pins[1])
+            
+            code.append(f"reg {q}_reg;")
+            code.append(f"assign {q} = {q}_reg;")
+            if qn:
+                code.append(f"assign {qn} = ~{q}_reg;")
+            code.append(f"always @(*) begin")
+            code.append(f"  if ({en})")
+            code.append(f"    {q}_reg = {d};")
+            code.append(f"end")
+        
+        elif comp.type == "MUX_4TO1":
+            out = self.get_pin_signal(comp.output_pins[0])
+            inputs = [self.get_pin_signal(comp.input_pins[i]) for i in range(4)]
+            s0 = self.get_pin_signal(comp.input_pins[4])
+            s1 = self.get_pin_signal(comp.input_pins[5])
+            
+            code.append(f"assign {out} = ({s1} == 1'b0) ? ")
+            code.append(f"                  (({s0} == 1'b0) ? {inputs[0]} : {inputs[1]}) :")
+            code.append(f"                  (({s0} == 1'b0) ? {inputs[2]} : {inputs[3]});")
+        
+        elif comp.type == "MUX_8TO1":
+            out = self.get_pin_signal(comp.output_pins[0])
+            inputs = [self.get_pin_signal(comp.input_pins[i]) for i in range(8)]
+            s0 = self.get_pin_signal(comp.input_pins[8])
+            s1 = self.get_pin_signal(comp.input_pins[9])
+            s2 = self.get_pin_signal(comp.input_pins[10])
+            
+            code.append(f"wire [2:0] sel = {{{s2}, {s1}, {s0}}};")
+            code.append(f"assign {out} = (sel == 3'd0) ? {inputs[0]} :")
+            code.append(f"               (sel == 3'd1) ? {inputs[1]} :")
+            code.append(f"               (sel == 3'd2) ? {inputs[2]} :")
+            code.append(f"               (sel == 3'd3) ? {inputs[3]} :")
+            code.append(f"               (sel == 3'd4) ? {inputs[4]} :")
+            code.append(f"               (sel == 3'd5) ? {inputs[5]} :")
+            code.append(f"               (sel == 3'd6) ? {inputs[6]} : {inputs[7]};")
+        
+        elif comp.type == "ADDER_4BIT":
+            # 4-bit Ripple Carry Adder
+            a_bits = [self.get_pin_signal(comp.input_pins[i]) for i in range(4)]
+            b_bits = [self.get_pin_signal(comp.input_pins[4+i]) for i in range(4)]
+            cin = self.get_pin_signal(comp.input_pins[8])
+            s_bits = [self.get_pin_signal(comp.output_pins[i]) for i in range(4)]
+            cout = self.get_pin_signal(comp.output_pins[4])
+            
+            code.append(f"wire [3:0] a = {{{a_bits[3]}, {a_bits[2]}, {a_bits[1]}, {a_bits[0]}}};")
+            code.append(f"wire [3:0] b = {{{b_bits[3]}, {b_bits[2]}, {b_bits[1]}, {b_bits[0]}}};")
+            code.append(f"wire [4:0] sum = a + b + {cin};")
+            code.append(f"assign {{{s_bits[3]}, {s_bits[2]}, {s_bits[1]}, {s_bits[0]}}} = sum[3:0];")
+            code.append(f"assign {cout} = sum[4];")
+        
+        elif comp.type == "ADDER_8BIT":
+            # 8-bit Ripple Carry Adder
+            a_bits = [self.get_pin_signal(comp.input_pins[i]) for i in range(8)]
+            b_bits = [self.get_pin_signal(comp.input_pins[8+i]) for i in range(8)]
+            cin = self.get_pin_signal(comp.input_pins[16])
+            s_bits = [self.get_pin_signal(comp.output_pins[i]) for i in range(8)]
+            cout = self.get_pin_signal(comp.output_pins[8])
+            
+            a_vec = ", ".join(reversed(a_bits))
+            b_vec = ", ".join(reversed(b_bits))
+            s_vec = ", ".join(reversed(s_bits))
+            
+            code.append(f"wire [7:0] a = {{{a_vec}}};")
+            code.append(f"wire [7:0] b = {{{b_vec}}};")
+            code.append(f"wire [8:0] sum = a + b + {cin};")
+            code.append(f"assign {{{s_vec}}} = sum[7:0];")
+            code.append(f"assign {cout} = sum[8];")
+        
+        elif comp.type == "COUNTER_4BIT":
+            q_bits = [self.get_pin_signal(comp.output_pins[i]) for i in range(4)]
+            clk = self.get_pin_signal(comp.input_pins[0])
+            rst = self.get_pin_signal(comp.input_pins[1])
+            en = self.get_pin_signal(comp.input_pins[2])
+            
+            q_vec = ", ".join(reversed(q_bits))
+            
+            code.append(f"reg [3:0] count_reg;")
+            code.append(f"assign {{{q_vec}}} = count_reg;")
+            code.append(f"always @(posedge {clk} or posedge {rst}) begin")
+            code.append(f"  if ({rst})")
+            code.append(f"    count_reg <= 4'd0;")
+            code.append(f"  else if ({en})")
+            code.append(f"    count_reg <= count_reg + 1'b1;")
+            code.append(f"end")
+        
+        elif comp.type == "REGISTER_4BIT":
+            d_bits = [self.get_pin_signal(comp.input_pins[i]) for i in range(4)]
+            clk = self.get_pin_signal(comp.input_pins[4])
+            rst = self.get_pin_signal(comp.input_pins[5])
+            q_bits = [self.get_pin_signal(comp.output_pins[i]) for i in range(4)]
+            
+            d_vec = ", ".join(reversed(d_bits))
+            q_vec = ", ".join(reversed(q_bits))
+            
+            code.append(f"reg [3:0] reg_data;")
+            code.append(f"assign {{{q_vec}}} = reg_data;")
+            code.append(f"always @(posedge {clk} or posedge {rst}) begin")
+            code.append(f"  if ({rst})")
+            code.append(f"    reg_data <= 4'd0;")
+            code.append(f"  else")
+            code.append(f"    reg_data <= {{{d_vec}}};")
+            code.append(f"end")
             
         else:
-            code.append(f"// TODO: Implement {comp.type}")
+            code.append(f"// Component {comp.type} not yet implemented in Verilog generator")
             
         return code
         
