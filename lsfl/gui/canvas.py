@@ -28,6 +28,7 @@ class Canvas(QWidget):
         # Etkileşim durumu
         self.dragging_component = None
         self.selected_components = []
+        self.selected_wires = []  # Seçili kablolar
         self.connecting_from = None  # Kablo bağlantısı için
         self.temp_wire_end = None
         self.panning = False
@@ -247,7 +248,7 @@ class Canvas(QWidget):
         self.draw_pins(painter, component)
     
     def draw_logic_gate(self, painter, component):
-        """IEEE standart mantık kapısı çiz"""
+        """IEEE Std 91-1984 standart mantık kapısı çiz - Matematiksel olarak kusursuz"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -256,70 +257,104 @@ class Canvas(QWidget):
         
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # IEEE standart şekiller (QPainterPath ile)
-        path = QPainterPath()
         x, y, w, h = component.x, component.y, component.width, component.height
         
         if component.type == "AND":
-            # AND kapısı: D şekli
+            # IEEE AND: Düz sol kenar + yarım daire sağ kenar
+            path = QPainterPath()
             path.moveTo(x, y)
-            path.lineTo(x + w * 0.6, y)
-            path.arcTo(x + w * 0.2, y, w * 0.8, h, 90, -180)
+            path.lineTo(x + w * 0.5, y)
+            path.arcTo(x + w * 0.1, y, w * 0.8, h, 90, -180)
             path.lineTo(x, y + h)
             path.closeSubpath()
+            painter.drawPath(path)
             
         elif component.type == "OR":
-            # OR kapısı: Kavisli şekil
+            # IEEE OR: Kavisli giriş + sivri çıkış
+            path = QPainterPath()
+            # Sol kavis (giriş tarafı)
             path.moveTo(x, y)
-            path.quadTo(x + w * 0.3, y + h * 0.5, x, y + h)
-            path.quadTo(x + w * 0.5, y + h, x + w, y + h * 0.5)
-            path.quadTo(x + w * 0.5, y, x, y)
-            
-        elif component.type in ["NAND", "NOR"]:
-            # NAND/NOR: AND/OR + inverter balonu
-            if component.type == "NAND":
-                path.moveTo(x, y)
-                path.lineTo(x + w * 0.5, y)
-                path.arcTo(x + w * 0.1, y, w * 0.7, h, 90, -180)
-                path.lineTo(x, y + h)
-                path.closeSubpath()
-            else:
-                path.moveTo(x, y)
-                path.quadTo(x + w * 0.3, y + h * 0.5, x, y + h)
-                path.quadTo(x + w * 0.4, y + h, x + w * 0.85, y + h * 0.5)
-                path.quadTo(x + w * 0.4, y, x, y)
-            
-            # Inverter balonu
+            path.quadTo(x + w * 0.2, y + h * 0.5, x, y + h)
+            # Alt kenar
+            path.quadTo(x + w * 0.4, y + h * 0.85, x + w * 0.9, y + h * 0.5)
+            # Üst kenar
+            path.quadTo(x + w * 0.4, y + h * 0.15, x, y)
             painter.drawPath(path)
-            painter.setBrush(QBrush(QColor(60, 60, 60)))
-            painter.drawEllipse(QPoint(x + w - 6, y + h // 2), 6, 6)
+            
+        elif component.type == "NAND":
+            # IEEE NAND: AND + inversion bubble
+            path = QPainterPath()
+            bubble_radius = 5
+            path.moveTo(x, y)
+            path.lineTo(x + w * 0.5, y)
+            path.arcTo(x + w * 0.1, y, w * 0.7, h, 90, -180)
+            path.lineTo(x, y + h)
+            path.closeSubpath()
+            painter.drawPath(path)
+            
+            # Inversion bubble (çıkışta)
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawEllipse(QPoint(int(x + w * 0.85), int(y + h / 2)), bubble_radius, bubble_radius)
             painter.setBrush(QBrush(QColor(60, 60, 60)))
             
-        elif component.type in ["XOR", "XNOR"]:
-            # XOR: Çift kavisli
-            path.moveTo(x + 10, y)
-            path.quadTo(x + w * 0.4, y + h * 0.5, x + 10, y + h)
-            path.quadTo(x + w * 0.5, y + h, x + w, y + h * 0.5)
-            path.quadTo(x + w * 0.5, y, x + 10, y)
+        elif component.type == "NOR":
+            # IEEE NOR: OR + inversion bubble
+            path = QPainterPath()
+            bubble_radius = 5
+            path.moveTo(x, y)
+            path.quadTo(x + w * 0.2, y + h * 0.5, x, y + h)
+            path.quadTo(x + w * 0.35, y + h * 0.85, x + w * 0.8, y + h * 0.5)
+            path.quadTo(x + w * 0.35, y + h * 0.15, x, y)
+            painter.drawPath(path)
+            
+            # Inversion bubble
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawEllipse(QPoint(int(x + w * 0.85), int(y + h / 2)), bubble_radius, bubble_radius)
+            painter.setBrush(QBrush(QColor(60, 60, 60)))
+            
+        elif component.type == "XOR":
+            # IEEE XOR: Çift kavisli giriş + sivri çıkış
+            path = QPainterPath()
+            # Ana gövde
+            path.moveTo(x + 12, y)
+            path.quadTo(x + w * 0.25, y + h * 0.5, x + 12, y + h)
+            path.quadTo(x + w * 0.45, y + h * 0.85, x + w * 0.95, y + h * 0.5)
+            path.quadTo(x + w * 0.45, y + h * 0.15, x + 12, y)
+            painter.drawPath(path)
+            
+            # Ekstra giriş kavisi (double curved shield)
+            extra_path = QPainterPath()
+            extra_path.moveTo(x + 2, y + 2)
+            extra_path.quadTo(x + w * 0.15, y + h * 0.5, x + 2, y + h - 2)
+            painter.drawPath(extra_path)
+            
+        elif component.type == "XNOR":
+            # IEEE XNOR: XOR + inversion bubble
+            path = QPainterPath()
+            bubble_radius = 5
+            # Ana gövde
+            path.moveTo(x + 12, y)
+            path.quadTo(x + w * 0.25, y + h * 0.5, x + 12, y + h)
+            path.quadTo(x + w * 0.4, y + h * 0.85, x + w * 0.85, y + h * 0.5)
+            path.quadTo(x + w * 0.4, y + h * 0.15, x + 12, y)
+            painter.drawPath(path)
             
             # Ekstra giriş kavisi
-            painter.drawPath(path)
-            painter.drawArc(x, y, 20, h, 90 * 16, -180 * 16)
+            extra_path = QPainterPath()
+            extra_path.moveTo(x + 2, y + 2)
+            extra_path.quadTo(x + w * 0.15, y + h * 0.5, x + 2, y + h - 2)
+            painter.drawPath(extra_path)
             
-            if component.type == "XNOR":
-                painter.setBrush(QBrush(QColor(60, 60, 60)))
-                painter.drawEllipse(QPoint(x + w - 6, y + h // 2), 6, 6)
-            
+            # Inversion bubble
+            painter.setBrush(QBrush(QColor(255, 255, 255)))
+            painter.drawEllipse(QPoint(int(x + w * 0.9), int(y + h / 2)), bubble_radius, bubble_radius)
             painter.setBrush(QBrush(QColor(60, 60, 60)))
-        
-        if component.type not in ["NAND", "NOR", "XOR", "XNOR"]:
-            painter.drawPath(path)
         
         # Pinleri çiz
         self.draw_pins(painter, component)
     
     def draw_not_gate(self, painter, component):
-        """NOT kapısı çiz"""
+        """IEEE NOT kapısı çiz - Üçgen + inversion bubble"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -328,19 +363,27 @@ class Canvas(QWidget):
         
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # Dikdörtgen
-        rect = QRect(component.x, component.y, component.width, component.height)
-        painter.drawRect(rect)
+        x, y, w, h = component.x, component.y, component.width, component.height
+        bubble_radius = 5
         
-        # "NOT" yazısı
-        painter.setPen(QPen(QColor(255, 255, 255)))
-        font = painter.font()
-        font.setPointSize(10)
-        font.setBold(True)
-        painter.setFont(font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "NOT")
+        # IEEE NOT: Üçgen gövde
+        path = QPainterPath()
+        # Sol kenar (giriş)
+        path.moveTo(x + 5, y + 5)
+        # Üst köşe
+        path.lineTo(x + w - bubble_radius - 8, y + h / 2)
+        # Alt köşe
+        path.lineTo(x + 5, y + h - 5)
+        # Kapat
+        path.closeSubpath()
+        painter.drawPath(path)
+        
+        # Inversion bubble (çıkışta)
+        painter.setBrush(QBrush(QColor(255, 255, 255)))
+        painter.drawEllipse(QPoint(int(x + w - bubble_radius - 3), int(y + h / 2)), bubble_radius, bubble_radius)
         
         # Pinleri çiz
+        painter.setBrush(QBrush(QColor(60, 60, 60)))
         self.draw_pins(painter, component)
     
     def draw_buffer_gate(self, painter, component):
@@ -638,15 +681,26 @@ class Canvas(QWidget):
             painter.drawText(component.x + component.width - text_width - 10, y + 3, pin.name)
             
     def draw_wire(self, painter, wire):
-        """Vertex'lerle birlikte kablo çiz - dinamik renklendirme"""
+        """Katı orthogonal kablo çiz - Seçilebilir ve düzenlenebilir"""
+        # Kablo seçili mi?
+        is_selected = wire in getattr(self, 'selected_wires', [])
+        
         # Kablo değerine göre dinamik renk
         wire_val = bool(wire.value)
-        if wire_val:
+        if is_selected:
+            # Seçili: Mavi
+            pen_color = QColor(100, 150, 255)
+            pen_width = 4
+        elif wire_val:
             # Logic 1: Parlak yeşil
-            painter.setPen(QPen(QColor(50, 205, 50), 3))
+            pen_color = QColor(50, 205, 50)
+            pen_width = 3
         else:
             # Logic 0: Koyu gri
-            painter.setPen(QPen(QColor(85, 85, 85), 2))
+            pen_color = QColor(85, 85, 85)
+            pen_width = 2
+        
+        painter.setPen(QPen(pen_color, pen_width))
         
         # Başlangıç ve bitiş noktaları
         start = wire.from_pin.get_position()
@@ -656,22 +710,45 @@ class Canvas(QWidget):
         if hasattr(wire, 'vertices') and wire.vertices:
             path_points = [start] + wire.vertices + [end]
             
-            # Tüm segmentleri çiz
+            # Tüm segmentleri çiz - Katı orthogonal
             for i in range(len(path_points) - 1):
-                painter.drawLine(path_points[i], path_points[i + 1])
+                p1 = path_points[i]
+                p2 = path_points[i + 1]
+                
+                # Diagonal kontrolü ve düzeltme
+                if p1.x() != p2.x() and p1.y() != p2.y():
+                    # L-şekli yap
+                    mid = QPoint(p2.x(), p1.y())
+                    painter.drawLine(p1, mid)
+                    painter.drawLine(mid, p2)
+                else:
+                    painter.drawLine(p1, p2)
             
-            # Vertex noktalarını çiz (düzenlenebilir)
-            painter.setBrush(QBrush(QColor(100, 100, 100)))
+            # Vertex noktalarını çiz (düzenlenebilir tutamaklar)
+            if is_selected:
+                painter.setBrush(QBrush(QColor(100, 150, 255)))
+                painter.setPen(QPen(QColor(80, 120, 200), 2))
+            else:
+                painter.setBrush(QBrush(QColor(120, 120, 120)))
+                painter.setPen(QPen(QColor(100, 100, 100), 1))
+            
             for vertex in wire.vertices:
-                painter.drawEllipse(vertex, 4, 4)
+                painter.drawEllipse(vertex, 5, 5)
         else:
             # Vertex yoksa otomatik orthogonal routing
-            intermediate = self.calculate_orthogonal_point(start, end)
+            dx = end.x() - start.x()
+            dy = end.y() - start.y()
+            
+            if abs(dx) > abs(dy):
+                intermediate = QPoint(end.x(), start.y())
+            else:
+                intermediate = QPoint(start.x(), end.y())
+            
             painter.drawLine(start, intermediate)
             painter.drawLine(intermediate, end)
         
     def draw_temp_wire(self, painter):
-        """Proteus-style orthogonal routing ile geçici kablo çiz"""
+        """Katı 90° Manhattan routing ile geçici kablo çiz - Diagonal yasak"""
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
         
@@ -679,22 +756,47 @@ class Canvas(QWidget):
         path_points = [start] + self.wire_vertices
         
         if self.temp_wire_end:
-            # Son noktaya kadar Manhattan routing
+            # Son noktadan temp_wire_end'e Manhattan routing
             if path_points:
                 last_point = path_points[-1]
-                # Orthogonal (90 derece) kablo çizimi
-                intermediate = self.calculate_orthogonal_point(last_point, self.temp_wire_end)
-                path_points.append(intermediate)
+                
+                # Katı orthogonal routing: Önce yatay VEYA dikey, sonra diğeri
+                dx = self.temp_wire_end.x() - last_point.x()
+                dy = self.temp_wire_end.y() - last_point.y()
+                
+                if abs(dx) > abs(dy):
+                    # Önce yatay git
+                    intermediate = QPoint(self.temp_wire_end.x(), last_point.y())
+                else:
+                    # Önce dikey git
+                    intermediate = QPoint(last_point.x(), self.temp_wire_end.y())
+                
+                # Sadece intermediate farklıysa ekle
+                if intermediate != last_point and intermediate != self.temp_wire_end:
+                    path_points.append(intermediate)
+            
             path_points.append(self.temp_wire_end)
         
-        # Yolu çiz
+        # Yolu çiz - Her segment kesinlikle yatay veya dikey
         for i in range(len(path_points) - 1):
-            painter.drawLine(path_points[i], path_points[i + 1])
+            p1 = path_points[i]
+            p2 = path_points[i + 1]
+            
+            # Güvenlik kontrolü: Diagonal çizim varsa düzelt
+            if p1.x() != p2.x() and p1.y() != p2.y():
+                # Diagonal tespit edildi, L-şekli yap
+                mid = QPoint(p2.x(), p1.y())
+                painter.drawLine(p1, mid)
+                painter.drawLine(mid, p2)
+            else:
+                # Normal orthogonal çizgi
+                painter.drawLine(p1, p2)
         
-        # Vertex noktalarını işaretle
+        # Vertex noktalarını işaretle (düzenlenebilir tutamaklar)
         painter.setBrush(QBrush(QColor(150, 150, 255)))
+        painter.setPen(QPen(QColor(100, 100, 200), 2))
         for vertex in self.wire_vertices:
-            painter.drawEllipse(vertex, 5, 5)
+            painter.drawEllipse(vertex, 6, 6)
     
     def calculate_orthogonal_point(self, start, end):
         """Manhattan routing için ara nokta hesapla"""

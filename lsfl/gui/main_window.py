@@ -7,21 +7,30 @@ from PyQt6.QtWidgets import (QMainWindow, QToolBar, QStatusBar, QDockWidget,
                               QFileDialog, QScrollArea, QSizePolicy)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
+import os
 
 from gui.canvas import Canvas
 from gui.component_palette import ComponentPalette
 from core.circuit import Circuit
 from export.verilog_generator import VerilogGenerator
+from core.i18n import tr, get_translator
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.circuit = Circuit()
+        self.translator = get_translator()
         self.init_ui()
+        self.apply_translations()
+        
+        # Logo ikonunu ayarla
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.svg")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
         
     def init_ui(self):
-        self.setWindowTitle("LSFL - Logic Sim For Linux")
+        self.setWindowTitle(tr("app_title"))
         # Daha küçük başlangıç boyutu ve maksimize edilebilir
         self.setGeometry(100, 100, 1200, 700)
         self.setMinimumSize(800, 600)
@@ -44,7 +53,7 @@ class MainWindow(QMainWindow):
         # Status bar
         self.statusBar = QStatusBar()
         self.setStatusBar(self.statusBar)
-        self.statusBar.showMessage("Hazır")
+        self.statusBar.showMessage(tr("ready"))
         
         # Menü
         self.create_menu()
@@ -106,13 +115,18 @@ class MainWindow(QMainWindow):
         
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
         
+    def apply_translations(self):
+        """Çevirileri uygula"""
+        self.setWindowTitle(tr("app_title"))
+        # Menü ve toolbar güncellemeleri create_menu ve create_toolbar'da yapılacak
+    
     def create_menu(self):
         menubar = self.menuBar()
         
         # Dosya menüsü
-        file_menu = menubar.addMenu("Dosya")
+        file_menu = menubar.addMenu(tr("file"))
         
-        new_action = QAction("Yeni", self)
+        new_action = QAction(tr("new"), self)
         new_action.setShortcut(QKeySequence.StandardKey.New)
         new_action.triggered.connect(self.new_circuit)
         file_menu.addAction(new_action)

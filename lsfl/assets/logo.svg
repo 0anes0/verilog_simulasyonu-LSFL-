@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#2b2b2b" stroke="#4a9eff" stroke-width="3"/>
+  
+  <!-- AND Gate (IEEE Standard) -->
+  <g transform="translate(110, 80)">
+    <!-- Gate body -->
+    <path d="M 0,0 L 30,0 A 25,25 0 0,1 30,50 L 0,50 Z" 
+          fill="#4a9eff" stroke="#ffffff" stroke-width="2"/>
+    <!-- Input lines -->
+    <line x1="-15" y1="15" x2="0" y2="15" stroke="#ffffff" stroke-width="2"/>
+    <line x1="-15" y1="35" x2="0" y2="35" stroke="#ffffff" stroke-width="2"/>
+    <!-- Output line -->
+    <line x1="55" y1="25" x2="70" y2="25" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  
+  <!-- Penguin (Linux mascot - simplified) -->
+  <g transform="translate(40, 70)">
+    <!-- Body -->
+    <ellipse cx="25" cy="45" rx="22" ry="30" fill="#000000" stroke="#ffffff" stroke-width="2"/>
+    <!-- Belly -->
+    <ellipse cx="25" cy="48" rx="14" ry="20" fill="#ffffff"/>
+    <!-- Head -->
+    <circle cx="25" cy="20" r="15" fill="#000000" stroke="#ffffff" stroke-width="2"/>
+    <!-- Eyes -->
+    <circle cx="20" cy="18" r="3" fill="#ffffff"/>
+    <circle cx="30" cy="18" r="3" fill="#ffffff"/>
+    <circle cx="20" cy="18" r="1.5" fill="#000000"/>
+    <circle cx="30" cy="18" r="1.5" fill="#000000"/>
+    <!-- Beak -->
+    <path d="M 25,22 L 22,26 L 28,26 Z" fill="#ff9900"/>
+    <!-- Feet -->
+    <ellipse cx="18" cy="78" rx="6" ry="4" fill="#ff9900"/>
+    <ellipse cx="32" cy="78" rx="6" ry="4" fill="#ff9900"/>
+    <!-- Wings -->
+    <ellipse cx="8" cy="45" rx="5" ry="15" fill="#000000" stroke="#ffffff" stroke-width="1"/>
+    <ellipse cx="42" cy="45" rx="5" ry="15" fill="#000000" stroke="#ffffff" stroke-width="1"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="100" y="170" font-family="Arial, sans-serif" font-size="24" font-weight="bold" 
+        text-anchor="middle" fill="#4a9eff">LSFL</text>
+  <text x="100" y="190" font-family="Arial, sans-serif" font-size="12" 
+        text-anchor="middle" fill="#cccccc">Logic Sim For Linux</text>
+</svg>
