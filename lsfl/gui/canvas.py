@@ -25,6 +25,9 @@ class Canvas(QWidget):
         self.grid_size = 20
         self.show_grid = True
         
+        # RubberBand seçim modu (Proteus/KiCad tarzı)
+        self.rubberband_selection = False
+        
         # Etkileşim durumu
         self.dragging_component = None
         self.selected_components = []
@@ -34,14 +37,21 @@ class Canvas(QWidget):
         self.panning = False
         self.pan_start = None
         
-        # Kare seçim aracı
+        # Kare seçim aracı (RubberBand)
         self.selecting = False
         self.selection_start = None
         self.selection_end = None
         
+        # Kablo düzenleme (Edit Mode)
+        self.dragging_wire = None
+        self.dragging_wire_segment = None  # Hangi segment sürükleniyor
+        
         # Bileşen yerleştirme modu
         self.placing_component = None
         self.placing_component_type = None
+        
+        # Wiring Mode (W tuşu ile toggle)
+        self.wiring_mode = False
         
         # Kablo köşe noktaları (Vertex sistemi)
         self.wire_vertices = []  # Kalıcı köşe noktaları
@@ -78,6 +88,9 @@ class Canvas(QWidget):
         # Kabloları çiz
         for wire in self.circuit.wires:
             self.draw_wire(painter, wire)
+        
+        # Junction noktalarını çiz (Proteus/KiCad tarzı)
+        self.draw_junctions(painter)
             
         # Geçici kablo çiz (bağlantı yapılırken)
         if self.connecting_from and self.temp_wire_end:
@@ -87,12 +100,24 @@ class Canvas(QWidget):
         for component in self.circuit.components:
             self.draw_component(painter, component)
         
-        # Kare seçim alanını çiz
+        # RubberBand seçim alanını çiz (Proteus tarzı)
         if self.selecting and self.selection_start and self.selection_end:
             painter.setPen(QPen(QColor(100, 150, 255), 2, Qt.PenStyle.DashLine))
             painter.setBrush(QBrush(QColor(100, 150, 255, 30)))
             rect = QRect(self.selection_start, self.selection_end).normalized()
             painter.drawRect(rect)
+            
+            # Seçim alanı köşelerinde handle'lar
+            handle_size = 6
+            painter.setBrush(QBrush(QColor(100, 150, 255)))
+            painter.setPen(QPen(QColor(255, 255, 255), 1))
+            corners = [
+                rect.topLeft(), rect.topRight(),
+                rect.bottomLeft(), rect.bottomRight()
+            ]
+            for corner in corners:
+                painter.drawRect(corner.x() - handle_size//2, corner.y() - handle_size//2,
+                               handle_size, handle_size)
         
         # Yerleştirilecek bileşeni göster
         if self.placing_component:
@@ -259,6 +284,9 @@ class Canvas(QWidget):
         
         x, y, w, h = component.x, component.y, component.width, component.height
         
+        # Kapı tipi etiketi (Proteus/KiCad tarzı - sembolün içinde)
+        gate_label = component.type  # "AND", "OR", "XOR" vb.
+        
         if component.type == "AND":
             # IEEE AND: Düz sol kenar + yarım daire sağ kenar
             path = QPainterPath()
@@ -350,6 +378,17 @@ class Canvas(QWidget):
             painter.drawEllipse(QPoint(int(x + w * 0.9), int(y + h / 2)), bubble_radius, bubble_radius)
             painter.setBrush(QBrush(QColor(60, 60, 60)))
         
+        # Kapı tipi etiketi çiz (Proteus/KiCad tarzı - sembolün içinde/üstünde)
+        painter.setPen(QPen(QColor(220, 220, 220)))
+        font = painter.font()
+        font.setPointSize(7)
+        font.setBold(True)
+        painter.setFont(font)
+        
+        # Etiket pozisyonu - sembolün üst ortasında
+        label_rect = QRect(x, y + 2, w, 12)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, gate_label)
+        
         # Pinleri çiz
         self.draw_pins(painter, component)
     
@@ -382,12 +421,21 @@ class Canvas(QWidget):
         painter.setBrush(QBrush(QColor(255, 255, 255)))
         painter.drawEllipse(QPoint(int(x + w - bubble_radius - 3), int(y + h / 2)), bubble_radius, bubble_radius)
         
+        # NOT etiketi (Proteus/KiCad tarzı)
+        painter.setPen(QPen(QColor(220, 220, 220)))
+        font = painter.font()
+        font.setPointSize(7)
+        font.setBold(True)
+        painter.setFont(font)
+        label_rect = QRect(x, y + 2, w - 10, 12)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, "NOT")
+        
         # Pinleri çiz
         painter.setBrush(QBrush(QColor(60, 60, 60)))
         self.draw_pins(painter, component)
     
     def draw_buffer_gate(self, painter, component):
-        """Buffer çiz"""
+        """Buffer çiz (Proteus/KiCad tarzı etiketli)"""
         # Seçili mi?
         if component in self.selected_components:
             painter.setPen(QPen(QColor(100, 150, 255), 2))
@@ -400,13 +448,13 @@ class Canvas(QWidget):
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # "BUFFER" yazısı
-        painter.setPen(QPen(QColor(255, 255, 255)))
+        # "BUFFER" yazısı (Proteus/KiCad tarzı - net ve okunabilir)
+        painter.setPen(QPen(QColor(220, 220, 220)))
         font = painter.font()
-        font.setPointSize(9)
+        font.setPointSize(8)
         font.setBold(True)
         painter.setFont(font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "BUF")
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "BUFFER")
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -702,9 +750,17 @@ class Canvas(QWidget):
         
         painter.setPen(QPen(pen_color, pen_width))
         
-        # Başlangıç ve bitiş noktaları
-        start = wire.from_pin.get_position()
-        end = wire.to_pin.get_position()
+        # Floating state kontrolü
+        if not wire.from_pin and not wire.to_pin:
+            return  # Tamamen kopuk kablo, çizme
+        
+        # Başlangıç ve bitiş noktaları (floating olabilir)
+        start = wire.from_pin.get_position() if wire.from_pin else (wire.vertices[0] if wire.vertices else QPoint(0, 0))
+        end = wire.to_pin.get_position() if wire.to_pin else (wire.vertices[-1] if wire.vertices else start)
+        
+        # Floating state görsel göstergesi
+        if wire.is_floating:
+            painter.setPen(QPen(QColor(255, 100, 100), pen_width, Qt.PenStyle.DashLine))
         
         # Kullanıcının eklediği vertex'lerle yol oluştur
         if hasattr(wire, 'vertices') and wire.vertices:
@@ -756,10 +812,27 @@ class Canvas(QWidget):
             painter.drawLine(start, intermediate)
             painter.drawLine(intermediate, end)
         
+    def draw_junctions(self, painter):
+        """Junction (düğüm) noktalarını çiz"""
+        painter.setPen(QPen(QColor(255, 255, 255), 1))
+        painter.setBrush(QBrush(QColor(50, 205, 50)))
+        
+        for junction_pos in self.circuit.junctions:
+            # İçi dolu küçük daire (Proteus/KiCad tarzı)
+            painter.drawEllipse(junction_pos, 4, 4)
+    
     def draw_temp_wire(self, painter):
         """Manuel orthogonal kablolama - Kullanıcı waypoint'leri ZORUNLU"""
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
+        
+        # Snap to wire kontrolü (junction oluşturma)
+        if self.temp_wire_end:
+            nearby_wire = self.get_wire_at(self.temp_wire_end, tolerance=10)
+            if nearby_wire:
+                # Kabloya snap göstergesi
+                painter.setBrush(QBrush(QColor(255, 200, 50)))
+                painter.drawEllipse(self.temp_wire_end, 6, 6)
         
         # Kullanıcının tıkladığı tüm waypoint'leri koru
         path_points = [start] + self.wire_vertices
@@ -1035,16 +1108,25 @@ class Canvas(QWidget):
             
             self.dragging_component = None
             
-            # Kare seçim tamamlandı
+            # RubberBand seçim tamamlandı (hem bileşenler hem kablolar)
             if self.selecting and self.selection_start and self.selection_end:
                 self.selecting = False
-                # Seçim alanındaki bileşenleri bul
                 selection_rect = QRect(self.selection_start, self.selection_end).normalized()
+                
+                # Bileşenleri seç
                 self.selected_components = []
                 for component in self.circuit.components:
                     comp_rect = QRect(component.x, component.y, component.width, component.height)
                     if selection_rect.intersects(comp_rect):
                         self.selected_components.append(component)
+                
+                # Kabloları da seç (Proteus/KiCad tarzı)
+                self.selected_wires = []
+                for wire in self.circuit.wires:
+                    # Kablonun herhangi bir segmenti seçim alanında mı?
+                    if self.wire_intersects_rect(wire, selection_rect):
+                        self.selected_wires.append(wire)
+                
                 self.selection_start = None
                 self.selection_end = None
                 self.update()
@@ -1141,6 +1223,48 @@ class Canvas(QWidget):
                 if distance < pin_radius:
                     return pin
         return None
+    
+    def get_wire_at(self, pos, tolerance=10):
+        """Verilen pozisyona yakın kablo bul (junction için)"""
+        for wire in self.circuit.wires:
+            if not wire.from_pin and not wire.to_pin:
+                continue
+            
+            # Kablonun segmentlerini kontrol et
+            start = wire.from_pin.get_position() if wire.from_pin else QPoint(0, 0)
+            end = wire.to_pin.get_position() if wire.to_pin else QPoint(0, 0)
+            
+            # Basit mesafe kontrolü (segment'e yakınlık)
+            if self.point_near_line(pos, start, end, tolerance):
+                return wire
+            
+            # Vertex'ler arası segmentler
+            if hasattr(wire, 'vertices') and wire.vertices:
+                path_points = [start] + wire.vertices + [end]
+                for i in range(len(path_points) - 1):
+                    if self.point_near_line(pos, path_points[i], path_points[i+1], tolerance):
+                        return wire
+        
+        return None
+    
+    def point_near_line(self, point, line_start, line_end, tolerance):
+        """Nokta çizgiye yakın mı? (junction snap için)"""
+        # Basit bounding box kontrolü
+        min_x = min(line_start.x(), line_end.x()) - tolerance
+        max_x = max(line_start.x(), line_end.x()) + tolerance
+        min_y = min(line_start.y(), line_end.y()) - tolerance
+        max_y = max(line_start.y(), line_end.y()) + tolerance
+        
+        if not (min_x <= point.x() <= max_x and min_y <= point.y() <= max_y):
+            return False
+        
+        # Orthogonal çizgi için basit mesafe
+        if line_start.x() == line_end.x():  # Dikey
+            return abs(point.x() - line_start.x()) <= tolerance
+        elif line_start.y() == line_end.y():  # Yatay
+            return abs(point.y() - line_start.y()) <= tolerance
+        
+        return False
         
     def add_component(self, component_type, pos=None):
         """Yeni bileşen ekle - yerleştirme moduna geç"""
@@ -1174,10 +1298,40 @@ class Canvas(QWidget):
         self.update()
         
     def delete_selected(self):
+        """Seçili bileşenleri ve kabloları sil"""
+        # Bileşenleri sil (kablolar floating olur)
         for component in self.selected_components:
             self.circuit.remove_component(component)
         self.selected_components = []
+        
+        # Kabloları tamamen sil (sadece seçili olanlar)
+        for wire in self.selected_wires:
+            if wire in self.circuit.wires:
+                self.circuit.wires.remove(wire)
+        self.selected_wires = []
+        
         self.update()
+    
+    def wire_intersects_rect(self, wire, rect):
+        """Kablonun herhangi bir segmenti dikdörtgeni kesiyor mu?"""
+        if not wire.from_pin and not wire.to_pin:
+            return False
+        
+        # Başlangıç ve bitiş noktaları
+        start = wire.from_pin.get_position() if wire.from_pin else QPoint(0, 0)
+        end = wire.to_pin.get_position() if wire.to_pin else QPoint(0, 0)
+        
+        # Basit kontrol: başlangıç veya bitiş noktası içinde mi?
+        if rect.contains(start) or rect.contains(end):
+            return True
+        
+        # Vertex'ler içinde mi?
+        if hasattr(wire, 'vertices'):
+            for vertex in wire.vertices:
+                if rect.contains(vertex):
+                    return True
+        
+        return False
         
     def select_all(self):
         self.selected_components = self.circuit.components.copy()
@@ -1210,13 +1364,20 @@ class Canvas(QWidget):
             elif self.connecting_from:
                 self.connecting_from = None
                 self.temp_wire_end = None
-                self.wire_waypoints = []
+                self.wire_vertices = []
+                self.update()
+            elif self.wiring_mode:
+                # Wiring mode'dan çık
+                self.wiring_mode = False
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+                if self.main_window:
+                    self.main_window.statusBar.showMessage("Kablolama modu kapatıldı")
                 self.update()
             elif self.selected_components:
                 self.selected_components = []
                 self.update()
         elif event.key() == Qt.Key.Key_Delete:
-            # Delete ile seçili bileşenleri sil
+            # Delete ile seçili bileşenleri ve kabloları sil
             if not self.circuit.is_running:
                 self.delete_selected()
         elif event.key() == Qt.Key.Key_Home:
@@ -1225,6 +1386,18 @@ class Canvas(QWidget):
             self.zoom = 1.0
             if self.main_window:
                 self.main_window.statusBar.showMessage("Canvas başlangıç pozisyonuna döndü")
+            self.update()
+        elif event.key() == Qt.Key.Key_W:
+            # W tuşu ile Wiring Mode toggle (Proteus/KiCad tarzı)
+            self.wiring_mode = not self.wiring_mode
+            if self.wiring_mode:
+                self.setCursor(Qt.CursorShape.CrossCursor)
+                if self.main_window:
+                    self.main_window.statusBar.showMessage("🔌 KABLOLAMA MODU AKTIF - Pinlere tıklayarak kablo çizin (ESC ile çık)")
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+                if self.main_window:
+                    self.main_window.statusBar.showMessage("Kablolama modu kapatıldı")
             self.update()
         super().keyPressEvent(event)
     

@@ -11,6 +11,7 @@ class Circuit:
     def __init__(self):
         self.components = []
         self.wires = []
+        self.junctions = []  # Düğüm noktaları (Junction points)
         self.is_running = False
         self.simulation_timer = None
         self.filename = None
@@ -47,10 +48,12 @@ class Circuit:
         
     def remove_component(self, component):
         if component in self.components:
-            # İlgili kabloları da sil
-            self.wires = [w for w in self.wires 
-                         if w.from_pin.component != component and 
-                            w.to_pin.component != component]
+            # Kabloları SİLME, sadece bağlantıları kes (floating state)
+            for wire in self.wires:
+                for pin in component.input_pins + component.output_pins:
+                    wire.disconnect_pin(pin)
+            
+            # Bileşeni kaldır
             self.components.remove(component)
             
     def add_wire(self, from_pin, to_pin):

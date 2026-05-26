@@ -4,22 +4,40 @@ Kablo bağlantısı
 
 
 class Wire:
-    def __init__(self, from_pin, to_pin):
+    def __init__(self, from_pin, to_pin=None):
         self.from_pin = from_pin
-        self.to_pin = to_pin
+        self.to_pin = to_pin  # None olabilir (floating/dangling state)
         self.value = False
         self.vertices = []  # Kablo köşe noktaları (Proteus-style routing)
+        self.is_floating = (to_pin is None)  # Floating state flag
         
         # Pin'lere kabloyu ekle
-        from_pin.connected_wires.append(self)
-        to_pin.connected_wires.append(self)
+        if from_pin:
+            from_pin.connected_wires.append(self)
+        if to_pin:
+            to_pin.connected_wires.append(self)
         
     def update(self):
         """Kablo değerini güncelle ve hedef pin'e yaz - senkronize"""
         # Kaynak pin'den değeri al
-        self.value = bool(self.from_pin.value)
-        # Hedef pin'e değeri doğrudan yaz
-        self.to_pin.value = self.value
+        if self.from_pin:
+            self.value = bool(self.from_pin.value)
+        # Hedef pin'e değeri doğrudan yaz (eğer bağlıysa)
+        if self.to_pin:
+            self.to_pin.value = self.value
+    
+    def disconnect_pin(self, pin):
+        """Bir pin'i kabloden ayır (bileşen silindiğinde)"""
+        if self.from_pin == pin:
+            self.from_pin = None
+            self.is_floating = True
+        if self.to_pin == pin:
+            self.to_pin = None
+            self.is_floating = True
+    
+    def is_valid(self):
+        """Kablo en az bir uca bağlı mı?"""
+        return self.from_pin is not None or self.to_pin is not None
         
     def reset(self):
         self.value = False
