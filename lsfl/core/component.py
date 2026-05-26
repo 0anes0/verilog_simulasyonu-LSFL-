@@ -38,11 +38,9 @@ class Pin:
             return QPoint(self.component.x + self.component.width, y)
             
     def set_value(self, value):
-        """Pin değerini ayarla (sadece çıkış pinleri için)"""
+        """Pin değerini ayarla"""
         new_value = bool(value)
-        # Değer değişmediyse güncelleme yapma (döngüyü önle)
-        if self.value == new_value:
-            return
+        # Değeri her zaman güncelle (UI senkronizasyonu için)
         self.value = new_value
 
 

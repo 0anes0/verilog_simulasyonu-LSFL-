@@ -15,9 +15,10 @@ class Wire:
         to_pin.connected_wires.append(self)
         
     def update(self):
-        """Kablo değerini güncelle ve hedef pin'e yaz"""
-        self.value = self.from_pin.value
-        # Hedef pin'e değeri doğrudan yaz (set_value kullanmadan döngüyü önle)
+        """Kablo değerini güncelle ve hedef pin'e yaz - senkronize"""
+        # Kaynak pin'den değeri al
+        self.value = bool(self.from_pin.value)
+        # Hedef pin'e değeri doğrudan yaz
         self.to_pin.value = self.value
         
     def reset(self):

@@ -90,27 +90,26 @@ class Circuit:
             self.simulation_timer.stop()
             
     def step(self):
-        """Bir simülasyon adımı çalıştır - Doğru sinyal yayılımı"""
-        # 1. Önce tüm bileşenlerin mantığını çalıştır
-        for component in self.components:
-            try:
-                component.update()
-            except Exception as e:
-                print(f"Bileşen güncelleme hatası {component.name}: {e}")
+        """Bir simülasyon adımı çalıştır - Topological sort ile sinyal yayılımı"""
+        # Çoklu geçiş ile tüm sinyallerin yayılmasını sağla
+        max_iterations = 5
         
-        # 2. Kabloları güncelle (sinyal yayılımı)
-        for wire in self.wires:
-            try:
-                wire.update()
-            except Exception as e:
-                print(f"Kablo güncelleme hatası: {e}")
-        
-        # 3. Kombinasyonel devreler için ikinci geçiş
-        for component in self.components:
-            try:
-                component.update()
-            except Exception as e:
-                pass
+        for iteration in range(max_iterations):
+            # 1. Tüm bileşenlerin mantığını çalıştır
+            for component in self.components:
+                try:
+                    component.update()
+                except Exception as e:
+                    if iteration == 0:  # Sadece ilk iterasyonda hata göster
+                        print(f"Bileşen güncelleme hatası {component.name}: {e}")
+            
+            # 2. Kabloları güncelle (sinyal yayılımı)
+            for wire in self.wires:
+                try:
+                    wire.update()
+                except Exception as e:
+                    if iteration == 0:
+                        print(f"Kablo güncelleme hatası: {e}")
             
     def reset(self):
         """Simülasyonu sıfırla"""

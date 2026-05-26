@@ -369,7 +369,7 @@ class Canvas(QWidget):
         self.draw_pins(painter, component)
     
     def draw_input_pin(self, painter, component):
-        """Input Pin çiz"""
+        """Input Pin çiz - state ile tam senkronize"""
         rect = QRect(component.x, component.y, component.width, component.height)
         
         # Seçili mi?
@@ -378,11 +378,12 @@ class Canvas(QWidget):
         else:
             painter.setPen(QPen(QColor(200, 200, 200), 2))
         
-        # Durum rengine göre
-        if component.state:
-            painter.setBrush(QBrush(QColor(100, 200, 100)))
+        # Durum rengine göre - state değerine bakarak
+        actual_state = bool(component.state)
+        if actual_state:
+            painter.setBrush(QBrush(QColor(50, 205, 50)))  # Parlak yeşil
         else:
-            painter.setBrush(QBrush(QColor(80, 80, 80)))
+            painter.setBrush(QBrush(QColor(85, 85, 85)))  # Koyu gri
         
         # Dikdörtgen şekil
         painter.drawRoundedRect(rect, 5, 5)
@@ -397,8 +398,8 @@ class Canvas(QWidget):
         name_rect = QRect(component.x, component.y + 5, component.width, component.height // 2)
         painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, component.name)
         
-        # Durum altta
-        status = "1" if component.state else "0"
+        # Durum altta - state ile senkronize
+        status = "1" if actual_state else "0"
         status_rect = QRect(component.x, component.y + component.height // 2, component.width, component.height // 2 - 5)
         font.setPointSize(12)
         font.setBold(True)
@@ -409,7 +410,7 @@ class Canvas(QWidget):
         self.draw_pins(painter, component)
     
     def draw_output_pin(self, painter, component):
-        """Output Pin çiz"""
+        """Output Pin çiz - giriş değeri ile tam senkronize"""
         rect = QRect(component.x, component.y, component.width, component.height)
         
         # Seçili mi?
@@ -418,12 +419,13 @@ class Canvas(QWidget):
         else:
             painter.setPen(QPen(QColor(200, 200, 200), 2))
         
-        # Durum rengine göre
-        is_on = len(component.input_pins) > 0 and component.input_pins[0].value
+        # Gerçek değeri al - display_value kullan
+        is_on = bool(component.display_value) if hasattr(component, 'display_value') else False
+        
         if is_on:
-            painter.setBrush(QBrush(QColor(100, 200, 100)))
+            painter.setBrush(QBrush(QColor(50, 205, 50)))  # Parlak yeşil
         else:
-            painter.setBrush(QBrush(QColor(80, 80, 80)))
+            painter.setBrush(QBrush(QColor(85, 85, 85)))  # Koyu gri
         
         # Dikdörtgen şekil
         painter.drawRoundedRect(rect, 5, 5)
@@ -438,7 +440,7 @@ class Canvas(QWidget):
         name_rect = QRect(component.x, component.y + 5, component.width, component.height // 2)
         painter.drawText(name_rect, Qt.AlignmentFlag.AlignCenter, component.name)
         
-        # Durum altta
+        # Durum altta - gerçek değer
         status = "1" if is_on else "0"
         status_rect = QRect(component.x, component.y + component.height // 2, component.width, component.height // 2 - 5)
         font.setPointSize(12)
@@ -467,13 +469,16 @@ class Canvas(QWidget):
             else:
                 y = component.y + component.height // 2
             
-            # Pin durumuna göre renk
-            if pin.value:
-                painter.setBrush(QBrush(QColor(100, 255, 100)))
-                painter.setPen(QPen(QColor(50, 200, 50), 2))
+            # Pin değerine göre dinamik renk
+            pin_val = bool(pin.value)
+            if pin_val:
+                # Logic 1: Parlak yeşil
+                painter.setBrush(QBrush(QColor(50, 205, 50)))
+                painter.setPen(QPen(QColor(34, 139, 34), 2))
             else:
-                painter.setBrush(QBrush(QColor(50, 50, 50)))
-                painter.setPen(QPen(QColor(150, 150, 150), 2))
+                # Logic 0: Koyu gri
+                painter.setBrush(QBrush(QColor(85, 85, 85)))
+                painter.setPen(QPen(QColor(100, 100, 100), 2))
                 
             painter.drawEllipse(QPoint(component.x, y), pin_radius, pin_radius)
             
@@ -491,12 +496,16 @@ class Canvas(QWidget):
             else:
                 y = component.y + component.height // 2
             
-            if pin.value:
-                painter.setBrush(QBrush(QColor(100, 255, 100)))
-                painter.setPen(QPen(QColor(50, 200, 50), 2))
+            # Pin değerine göre dinamik renk
+            pin_val = bool(pin.value)
+            if pin_val:
+                # Logic 1: Parlak yeşil
+                painter.setBrush(QBrush(QColor(50, 205, 50)))
+                painter.setPen(QPen(QColor(34, 139, 34), 2))
             else:
-                painter.setBrush(QBrush(QColor(50, 50, 50)))
-                painter.setPen(QPen(QColor(150, 150, 150), 2))
+                # Logic 0: Koyu gri
+                painter.setBrush(QBrush(QColor(85, 85, 85)))
+                painter.setPen(QPen(QColor(100, 100, 100), 2))
                 
             painter.drawEllipse(QPoint(component.x + component.width, y), pin_radius, pin_radius)
             
@@ -506,12 +515,15 @@ class Canvas(QWidget):
             painter.drawText(component.x + component.width - text_width - 10, y + 3, pin.name)
             
     def draw_wire(self, painter, wire):
-        """Vertex'lerle birlikte kablo çiz"""
-        # Kablo değerine göre renk
-        if wire.value:
-            painter.setPen(QPen(QColor(100, 255, 100), 3))
+        """Vertex'lerle birlikte kablo çiz - dinamik renklendirme"""
+        # Kablo değerine göre dinamik renk
+        wire_val = bool(wire.value)
+        if wire_val:
+            # Logic 1: Parlak yeşil
+            painter.setPen(QPen(QColor(50, 205, 50), 3))
         else:
-            painter.setPen(QPen(QColor(100, 100, 100), 2))
+            # Logic 0: Koyu gri
+            painter.setPen(QPen(QColor(85, 85, 85), 2))
         
         # Başlangıç ve bitiş noktaları
         start = wire.from_pin.get_position()
@@ -639,12 +651,16 @@ class Canvas(QWidget):
                 # Switch/Button basma (simülasyon çalışırken)
                 if component.type == "SWITCH" and self.circuit.is_running:
                     component.press()
+                    # Simülasyonu tetikle - sinyal yayılımı
+                    self.circuit.step()
                     self.update()
                     return
                 
                 # INPUT_PIN toggle (simülasyon çalışırken)
                 if component.type == "INPUT_PIN" and self.circuit.is_running:
                     component.toggle()
+                    # Simülasyonu tetikle - sinyal yayılımı
+                    self.circuit.step()
                     self.update()
                     return
                 

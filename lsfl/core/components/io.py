@@ -33,12 +33,16 @@ class Switch(Component):
         
     def update(self):
         """Switch ON ise: Out = In, Switch OFF ise: Out = 0 (açık devre)"""
-        if self.state:
-            # ON: Sinyali geçir
-            self.output_pins[0].set_value(self.input_pins[0].value)
-        else:
-            # OFF: Çıkışı 0 yap (açık devre)
-            self.output_pins[0].set_value(False)
+        try:
+            if self.state:
+                # ON: Sinyali geçir
+                in_val = self.input_pins[0].value if len(self.input_pins) > 0 else False
+                self.output_pins[0].value = bool(in_val)
+            else:
+                # OFF: Çıkışı 0 yap (açık devre)
+                self.output_pins[0].value = False
+        except (IndexError, AttributeError):
+            self.output_pins[0].value = False
 
 
 class LED(Component):
@@ -101,13 +105,15 @@ class InputPin(Component):
     def toggle(self):
         """Durumu değiştir ve sinyali yay"""
         self.state = not self.state
+        # Çıkış pinini hemen güncelle
         self.update()
         
     def update(self):
-        """Çıkış pinini güncelle"""
+        """Çıkış pinini güncelle - state ile senkronize"""
         try:
             if len(self.output_pins) > 0:
-                self.output_pins[0].set_value(bool(self.state))
+                # State değerini doğrudan çıkışa yaz
+                self.output_pins[0].value = bool(self.state)
         except (IndexError, AttributeError):
             pass
     
@@ -123,15 +129,16 @@ class OutputPin(Component):
         self.type = "OUTPUT_PIN"
         self.add_input_pin("In")
         self.custom_name = "OUT"
+        self.display_value = False  # Görüntülenen değer
         
     def update(self):
-        """Output pin - giriş sinyalini oku (görselleştirme için)"""
-        # Giriş değerini oku ama hiçbir şey yapma
+        """Output pin - giriş sinyalini oku ve görüntüle"""
         try:
             if len(self.input_pins) > 0:
-                _ = self.input_pins[0].value
+                # Giriş değerini al ve görüntüleme için sakla
+                self.display_value = bool(self.input_pins[0].value)
         except (IndexError, AttributeError):
-            pass
+            self.display_value = False
     
     def set_custom_name(self, name):
         """Özel isim ata"""
