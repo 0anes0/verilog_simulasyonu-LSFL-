@@ -20,6 +20,8 @@ class Circuit:
         self.component_counters = {}
         # ID Recycling: Boşalan ID'leri geri kazanma (Min-Heap benzeri)
         self.available_ids = {}  # {component_type: set of available IDs}
+        # ID Recycling: Boşalan ID'leri geri kazanma (Min-Heap benzeri)
+        self.available_ids = {}  # {component_type: set of available IDs}
         
     def add_component(self, component):
         """Bileşen ekle ve otomatik isim ver - ID Recycling ile"""

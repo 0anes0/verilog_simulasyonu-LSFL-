@@ -823,10 +823,27 @@ class Canvas(QWidget):
             # İçi dolu küçük daire (Proteus/KiCad tarzı)
             painter.drawEllipse(junction_pos, 4, 4)
     
+    def draw_junctions(self, painter):
+        """Junction (düğüm) noktalarını çiz"""
+        painter.setPen(QPen(QColor(255, 255, 255), 1))
+        painter.setBrush(QBrush(QColor(50, 205, 50)))
+        
+        for junction_pos in self.circuit.junctions:
+            # İçi dolu küçük daire (Proteus/KiCad tarzı)
+            painter.drawEllipse(junction_pos, 4, 4)
+    
     def draw_temp_wire(self, painter):
         """Manuel orthogonal kablolama - Kullanıcı waypoint'leri ZORUNLU"""
         painter.setPen(QPen(QColor(150, 150, 255), 2, Qt.PenStyle.DashLine))
         start = self.connecting_from.get_position()
+        
+        # Snap to wire kontrolü (junction oluşturma)
+        if self.temp_wire_end:
+            nearby_wire = self.get_wire_at(self.temp_wire_end, tolerance=10)
+            if nearby_wire:
+                # Kabloya snap göstergesi
+                painter.setBrush(QBrush(QColor(255, 200, 50)))
+                painter.drawEllipse(self.temp_wire_end, 6, 6)
         
         # Snap to wire kontrolü (junction oluşturma)
         if self.temp_wire_end:
