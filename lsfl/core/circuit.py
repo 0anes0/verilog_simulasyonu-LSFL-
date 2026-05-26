@@ -11,7 +11,8 @@ class Circuit:
     def __init__(self):
         self.components = []
         self.wires = []
-        self.junctions = []  # Düğüm noktaları (Junction points)
+        self.junctions = []  # Düğüm noktaları (Junction points) - QPoint listesi
+        self.junction_connections = {}  # Junction -> Wire listesi mapping
         self.is_running = False
         self.simulation_timer = None
         self.filename = None
@@ -62,10 +63,47 @@ class Circuit:
         # Aynı bağlantı var mı kontrol et
         for wire in self.wires:
             if wire.from_pin == from_pin and wire.to_pin == to_pin:
-                return
+                return wire
                 
         wire = Wire(from_pin, to_pin)
         self.wires.append(wire)
+        return wire
+    
+    def add_junction(self, position, wire1, wire2):
+        """İki kablo arasında junction (düğüm noktası) oluştur
+        
+        Args:
+            position: QPoint - Junction noktasının koordinatı
+            wire1: Wire - İlk kablo
+            wire2: Wire - İkinci kablo (yeni çizilen)
+        """
+        from PyQt6.QtCore import QPoint
+        
+        # Junction noktasını ekle (eğer yoksa)
+        junction_exists = False
+        for existing_junction in self.junctions:
+            if (existing_junction - position).manhattanLength() < 5:
+                position = existing_junction  # Mevcut junction'ı kullan
+                junction_exists = True
+                break
+        
+        if not junction_exists:
+            self.junctions.append(position)
+        
+        # Junction bağlantılarını kaydet
+        if position not in self.junction_connections:
+            self.junction_connections[position] = []
+        
+        if wire1 not in self.junction_connections[position]:
+            self.junction_connections[position].append(wire1)
+        if wire2 not in self.junction_connections[position]:
+            self.junction_connections[position].append(wire2)
+        
+        # Wire2'nin vertex listesine junction noktasını ekle
+        if hasattr(wire2, 'vertices'):
+            # Junction noktasını en yakın konuma ekle
+            if not wire2.vertices or (wire2.vertices[-1] - position).manhattanLength() > 5:
+                wire2.vertices.append(position)
         
     def remove_wire(self, wire):
         if wire in self.wires:
@@ -119,6 +157,8 @@ class Circuit:
         """Devreyi temizle"""
         self.components = []
         self.wires = []
+        self.junctions = []
+        self.junction_connections = {}
         self.stop_simulation()
         
     def save(self, filename):

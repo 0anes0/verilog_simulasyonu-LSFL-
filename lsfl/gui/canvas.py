@@ -378,15 +378,15 @@ class Canvas(QWidget):
             painter.drawEllipse(QPoint(int(x + w * 0.9), int(y + h / 2)), bubble_radius, bubble_radius)
             painter.setBrush(QBrush(QColor(60, 60, 60)))
         
-        # Kapı tipi etiketi çiz (Proteus/KiCad tarzı - sembolün içinde/üstünde)
+        # Kapı tipi etiketi çiz (Proteus/KiCad tarzı - sembolün ÜSTÜNDE)
         painter.setPen(QPen(QColor(220, 220, 220)))
         font = painter.font()
         font.setPointSize(7)
         font.setBold(True)
         painter.setFont(font)
         
-        # Etiket pozisyonu - sembolün üst ortasında
-        label_rect = QRect(x, y + 2, w, 12)
+        # Etiket pozisyonu - sembolün 10px ÜSTÜNDE (IEEE sembolüne değmeden)
+        label_rect = QRect(x, y - 15, w, 12)
         painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, gate_label)
         
         # Pinleri çiz
@@ -421,13 +421,13 @@ class Canvas(QWidget):
         painter.setBrush(QBrush(QColor(255, 255, 255)))
         painter.drawEllipse(QPoint(int(x + w - bubble_radius - 3), int(y + h / 2)), bubble_radius, bubble_radius)
         
-        # NOT etiketi (Proteus/KiCad tarzı)
+        # NOT etiketi (Proteus/KiCad tarzı - sembolün ÜSTÜNDE)
         painter.setPen(QPen(QColor(220, 220, 220)))
         font = painter.font()
         font.setPointSize(7)
         font.setBold(True)
         painter.setFont(font)
-        label_rect = QRect(x, y + 2, w - 10, 12)
+        label_rect = QRect(x, y - 15, w - 10, 12)
         painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, "NOT")
         
         # Pinleri çiz
@@ -448,13 +448,15 @@ class Canvas(QWidget):
         rect = QRect(component.x, component.y, component.width, component.height)
         painter.drawRect(rect)
         
-        # "BUFFER" yazısı (Proteus/KiCad tarzı - net ve okunabilir)
+        # "BUFFER" yazısı (Proteus/KiCad tarzı - sembolün ÜSTÜNDE)
         painter.setPen(QPen(QColor(220, 220, 220)))
         font = painter.font()
-        font.setPointSize(8)
+        font.setPointSize(7)
         font.setBold(True)
         painter.setFont(font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, "BUFFER")
+        # Etiket sembolün üstünde
+        label_rect = QRect(component.x, component.y - 15, component.width, 12)
+        painter.drawText(label_rect, Qt.AlignmentFlag.AlignCenter, "BUFFER")
         
         # Pinleri çiz
         self.draw_pins(painter, component)
@@ -967,6 +969,23 @@ class Canvas(QWidget):
                 self.update()
                 return
             
+            # Kablo seçimi kontrolü (bileşenden önce)
+            wire = self.get_wire_at(pos, tolerance=10)
+            if wire and not self.circuit.is_running:
+                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    # Ctrl ile çoklu seçim
+                    if wire in self.selected_wires:
+                        self.selected_wires.remove(wire)
+                    else:
+                        self.selected_wires.append(wire)
+                else:
+                    if wire not in self.selected_wires:
+                        self.selected_wires = [wire]
+                        self.selected_components = []  # Bileşen seçimini temizle
+                    self.dragging_wire = wire
+                self.update()
+                return
+            
             # Bileşen seçimi
             component = self.get_component_at(pos)
             if component:
@@ -1005,11 +1024,13 @@ class Canvas(QWidget):
                 else:
                     if component not in self.selected_components:
                         self.selected_components = [component]
+                        self.selected_wires = []  # Kablo seçimini temizle
                     self.dragging_component = component
                 self.update()
             else:
                 # Boş alana tıklama - kare seçim başlat
                 self.selected_components = []
+                self.selected_wires = []
                 self.selecting = True
                 self.selection_start = pos
                 self.selection_end = pos
@@ -1049,11 +1070,29 @@ class Canvas(QWidget):
             return
         
         if self.dragging_component and self.selected_components:
-            
             # Bileşenleri sürükle
             delta = pos - self.dragging_component.get_position()
             for comp in self.selected_components:
                 comp.move(comp.x + delta.x(), comp.y + delta.y())
+            self.update()
+            
+        elif self.dragging_wire and self.selected_wires:
+            # Kabloları sürükle - tüm vertex'leri kaydır
+            if not hasattr(self, 'wire_drag_start'):
+                self.wire_drag_start = pos
+                self.wire_original_vertices = {}
+                for wire in self.selected_wires:
+                    if hasattr(wire, 'vertices'):
+                        self.wire_original_vertices[wire] = [QPoint(v.x(), v.y()) for v in wire.vertices]
+            
+            delta = pos - self.wire_drag_start
+            
+            for wire in self.selected_wires:
+                if wire in self.wire_original_vertices:
+                    # Vertex'leri delta kadar kaydır
+                    wire.vertices = [QPoint(v.x() + delta.x(), v.y() + delta.y()) 
+                                    for v in self.wire_original_vertices[wire]]
+            
             self.update()
             
         elif self.selecting and self.selection_start:
@@ -1106,7 +1145,66 @@ class Canvas(QWidget):
                 component.release()
                 self.update()
             
+            # Kablo çizimi tamamlandı - Junction kontrolü
+            if self.connecting_from and self.temp_wire_end:
+                # Pin kontrolü
+                pin = self.get_pin_at(pos)
+                if pin and pin != self.connecting_from:
+                    if self.connecting_from.is_input != pin.is_input:
+                        # Normal pin-to-pin bağlantı
+                        if self.connecting_from.is_input:
+                            wire = self.circuit.add_wire(pin, self.connecting_from)
+                        else:
+                            wire = self.circuit.add_wire(self.connecting_from, pin)
+                        
+                        if wire and hasattr(wire, 'vertices'):
+                            wire.vertices = self.wire_vertices.copy()
+                        
+                        self.connecting_from = None
+                        self.temp_wire_end = None
+                        self.wire_vertices = []
+                        self.update()
+                        return
+                
+                # Pin bulunamadı - Kablo kontrolü (Junction)
+                nearby_wire = self.get_wire_at(pos, tolerance=15)
+                if nearby_wire:
+                    # Kabloyu kabloya bağla - Junction oluştur
+                    # Yeni kablo oluştur (floating end ile)
+                    if self.connecting_from.is_input:
+                        # Input pin'den başlayan kablo olamaz, atla
+                        self.connecting_from = None
+                        self.temp_wire_end = None
+                        self.wire_vertices = []
+                        self.update()
+                        return
+                    else:
+                        # Output pin'den başlayan kablo - floating end
+                        new_wire = Wire(self.connecting_from, None)
+                        new_wire.vertices = self.wire_vertices.copy()
+                        new_wire.is_floating = True
+                        self.circuit.wires.append(new_wire)
+                        
+                        # Junction noktasını hesapla (kabloya en yakın nokta)
+                        junction_pos = self.find_nearest_point_on_wire(nearby_wire, pos)
+                        
+                        # Junction oluştur
+                        self.circuit.add_junction(junction_pos, nearby_wire, new_wire)
+                        
+                        self.connecting_from = None
+                        self.temp_wire_end = None
+                        self.wire_vertices = []
+                        self.update()
+                        return
+            
             self.dragging_component = None
+            self.dragging_wire = None
+            
+            # Kablo sürükleme temizliği
+            if hasattr(self, 'wire_drag_start'):
+                delattr(self, 'wire_drag_start')
+            if hasattr(self, 'wire_original_vertices'):
+                delattr(self, 'wire_original_vertices')
             
             # RubberBand seçim tamamlandı (hem bileşenler hem kablolar)
             if self.selecting and self.selection_start and self.selection_end:
@@ -1265,6 +1363,47 @@ class Canvas(QWidget):
             return abs(point.y() - line_start.y()) <= tolerance
         
         return False
+    
+    def find_nearest_point_on_wire(self, wire, point):
+        """Kablo üzerinde verilen noktaya en yakın noktayı bul"""
+        if not wire.from_pin and not wire.to_pin:
+            return point
+        
+        start = wire.from_pin.get_position() if wire.from_pin else QPoint(0, 0)
+        end = wire.to_pin.get_position() if wire.to_pin else QPoint(0, 0)
+        
+        # Vertex'lerle birlikte tüm segmentleri kontrol et
+        path_points = [start]
+        if hasattr(wire, 'vertices') and wire.vertices:
+            path_points.extend(wire.vertices)
+        path_points.append(end)
+        
+        min_distance = float('inf')
+        nearest_point = point
+        
+        for i in range(len(path_points) - 1):
+            p1 = path_points[i]
+            p2 = path_points[i + 1]
+            
+            # Orthogonal segment üzerinde en yakın nokta
+            if p1.x() == p2.x():  # Dikey segment
+                # X sabit, Y değişken
+                y_clamped = max(min(point.y(), max(p1.y(), p2.y())), min(p1.y(), p2.y()))
+                candidate = QPoint(p1.x(), y_clamped)
+            elif p1.y() == p2.y():  # Yatay segment
+                # Y sabit, X değişken
+                x_clamped = max(min(point.x(), max(p1.x(), p2.x())), min(p1.x(), p2.x()))
+                candidate = QPoint(x_clamped, p1.y())
+            else:
+                # Diagonal (olmamalı ama yine de)
+                candidate = p1
+            
+            distance = (candidate - point).manhattanLength()
+            if distance < min_distance:
+                min_distance = distance
+                nearest_point = candidate
+        
+        return nearest_point
         
     def add_component(self, component_type, pos=None):
         """Yeni bileşen ekle - yerleştirme moduna geç"""
