@@ -147,7 +147,7 @@ FPGA projelerinizde kullanabileceğiniz Verilog kodunu alabilirsiniz.
 
 ## Lisans
 
-MIT License
+GNU GENERAL PUBLIC LICENSE
 
 ## Katkıda Bulunma
 
