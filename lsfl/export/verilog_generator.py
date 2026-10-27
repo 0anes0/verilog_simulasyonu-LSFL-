@@ -503,7 +503,16 @@ class VerilogGenerator:
             code.append(f"  end")
             code.append(f"end")
         
-        elif comp.type in ["SUBTRACTOR", "MULTIPLIER", "COMPARATOR"]:
+        elif comp.type == "COMPARATOR":
+            # 1-bit comparator, same as the simulator
+            in_a = self.get_pin_signal(comp.input_pins[0])
+            in_b = self.get_pin_signal(comp.input_pins[1])
+            gt, eq, lt = (self.get_pin_signal(p) for p in comp.output_pins)
+            code.append(f"assign {gt} = {in_a} & ~{in_b};")
+            code.append(f"assign {eq} = ~({in_a} ^ {in_b});")
+            code.append(f"assign {lt} = ~{in_a} & {in_b};")
+
+        elif comp.type in ["SUBTRACTOR", "MULTIPLIER"]:
             # Aritmetik bileşenler için temel implementasyon
             code.append(f"// {comp.type} - Basic implementation")
             if comp.type == "SUBTRACTOR":
