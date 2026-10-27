@@ -2,8 +2,17 @@
 Verilog kod üreteci - devreyi Verilog koduna çevirir
 """
 
+import re
+
+# Helper wires/regs that several component templates declare with the same name
+LOCAL_NAMES = re.compile(r"\b(sel|a|b|sum|diff|product|count_reg|reg_data|shift_data|updown_count)\b")
+
 
 class VerilogGenerator:
+    # Components that become module ports instead of logic
+    INPUT_TYPES = ["SWITCH", "BUTTON", "CLOCK", "INPUT_PIN"]
+    OUTPUT_TYPES = ["LED", "SEVEN_SEGMENT", "HEX_DISPLAY", "OUTPUT_PIN"]
+
     def __init__(self, circuit):
         self.circuit = circuit
         self.module_name = "generated_circuit"
@@ -43,29 +52,23 @@ class VerilogGenerator:
         
         # Giriş portları (Switch, Button, Clock)
         for comp in self.circuit.components:
-            if comp.type in ["SWITCH", "BUTTON", "CLOCK"]:
+            if comp.type in self.INPUT_TYPES:
                 for pin in comp.output_pins:
-                    ports.append(f"input {self.sanitize_name(comp.name)}_{pin.name}")
+                    ports.append(f"input {self.get_pin_signal_name(pin)}")
                     
         # Çıkış portları (LED, Display)
         for comp in self.circuit.components:
-            if comp.type in ["LED", "SEVEN_SEGMENT", "HEX_DISPLAY"]:
+            if comp.type in self.OUTPUT_TYPES:
                 for pin in comp.input_pins:
-                    ports.append(f"output {self.sanitize_name(comp.name)}_{pin.name}")
+                    ports.append(f"output {self.get_pin_signal_name(pin)}")
                     
         return ports if ports else ["// No external ports"]
         
     def generate_port_declarations(self):
         """Port tanımlamalarını üret"""
-        decls = []
-        
-        # Çıkış portları için wire/reg tanımlamaları
-        for comp in self.circuit.components:
-            if comp.type in ["LED", "SEVEN_SEGMENT", "HEX_DISPLAY"]:
-                for pin in comp.input_pins:
-                    decls.append(f"wire {self.sanitize_name(comp.name)}_{pin.name};")
-                    
-        return decls
+        # Ports are fully declared in the ANSI header above; declaring them
+        # again as wires is an error ("already been declared").
+        return []
         
     def generate_internal_signals(self):
         """İç sinyalleri üret"""
@@ -74,9 +77,9 @@ class VerilogGenerator:
         
         # Her bileşenin çıkış pinleri için sinyal
         for comp in self.circuit.components:
-            if comp.type not in ["SWITCH", "BUTTON", "CLOCK", "LED", "SEVEN_SEGMENT"]:
+            if comp.type not in self.INPUT_TYPES + self.OUTPUT_TYPES:
                 for pin in comp.output_pins:
-                    signal_name = f"{self.sanitize_name(comp.name)}_{pin.name}"
+                    signal_name = self.get_pin_signal_name(pin)
                     signals.append(f"wire {signal_name};")
                     
         return signals
@@ -87,8 +90,17 @@ class VerilogGenerator:
         instances.append("// Component instances")
         
         for comp in self.circuit.components:
-            if comp.type in ["SWITCH", "BUTTON", "CLOCK", "LED"]:
-                continue  # I/O bileşenleri için instance oluşturma
+            if comp.type in self.INPUT_TYPES:
+                continue  # inputs are ports, nothing to generate
+            if comp.type in self.OUTPUT_TYPES:
+                # drive the output port from whatever is wired to it (0 if nothing)
+                for pin in comp.input_pins:
+                    port = self.get_pin_signal_name(pin)
+                    source = self.get_pin_signal(pin)
+                    if source == port:
+                        source = "1'b0"
+                    instances.append(f"assign {port} = {source};")
+                continue
                 
             instances.append("")
             instances.append(f"// {comp.name}")
@@ -491,7 +503,16 @@ class VerilogGenerator:
             code.append(f"  end")
             code.append(f"end")
         
-        elif comp.type in ["SUBTRACTOR", "MULTIPLIER", "COMPARATOR"]:
+        elif comp.type == "COMPARATOR":
+            # 1-bit comparator, same as the simulator
+            in_a = self.get_pin_signal(comp.input_pins[0])
+            in_b = self.get_pin_signal(comp.input_pins[1])
+            gt, eq, lt = (self.get_pin_signal(p) for p in comp.output_pins)
+            code.append(f"assign {gt} = {in_a} & ~{in_b};")
+            code.append(f"assign {eq} = ~({in_a} ^ {in_b});")
+            code.append(f"assign {lt} = ~{in_a} & {in_b};")
+
+        elif comp.type in ["SUBTRACTOR", "MULTIPLIER"]:
             # Aritmetik bileşenler için temel implementasyon
             code.append(f"// {comp.type} - Basic implementation")
             if comp.type == "SUBTRACTOR":
@@ -527,7 +548,10 @@ class VerilogGenerator:
         else:
             code.append(f"// Component {comp.type} not yet implemented in Verilog generator")
             
-        return code
+        # Two adders (or an adder and a subtractor, both use "a") would declare the same
+        # names in one module; prefix them with the component name.
+        prefix = self.sanitize_name(comp.name)
+        return [LOCAL_NAMES.sub(lambda m: f"{prefix}_{m.group(1)}", line) for line in code]
         
     def get_pin_signal(self, pin):
         """Pin için sinyal adını al"""
@@ -543,13 +567,13 @@ class VerilogGenerator:
         """Pin için sinyal adı oluştur"""
         comp = pin.component
         
-        # I/O bileşenleri için özel isimler
-        if comp.type in ["SWITCH", "BUTTON", "CLOCK"]:
-            return f"{self.sanitize_name(comp.name)}_{pin.name}"
-        elif comp.type in ["LED", "SEVEN_SEGMENT"]:
-            return f"{self.sanitize_name(comp.name)}_{pin.name}"
-        else:
-            return f"{self.sanitize_name(comp.name)}_{pin.name}"
+        return f"{self.sanitize_name(comp.name)}_{self.sanitize_pin(pin.name)}"
+
+    def sanitize_pin(self, name):
+        """Pin names like Q', A>B, A=B are not valid in identifiers; spell the symbols out."""
+        for symbol, word in (("'", "_n"), (">", "gt"), ("<", "lt"), ("=", "eq")):
+            name = name.replace(symbol, word)
+        return "".join(c if c.isalnum() or c == "_" else "_" for c in name)
             
     def sanitize_name(self, name):
         """İsmi Verilog için temizle"""
