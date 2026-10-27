@@ -36,7 +36,7 @@ class FullAdder(Component):
         b = self.input_pins[1].value
         cin = self.input_pins[2].value
         
-        sum_val = a != b != cin
+        sum_val = (a != b) != cin  # a XOR b XOR cin; a != b != cin would mean (a != b) and (b != cin)
         cout = (a and b) or (cin and (a != b))
         
         self.output_pins[0].set_value(sum_val)
