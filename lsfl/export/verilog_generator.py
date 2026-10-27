@@ -4,6 +4,10 @@ Verilog kod üreteci - devreyi Verilog koduna çevirir
 
 
 class VerilogGenerator:
+    # Components that become module ports instead of logic
+    INPUT_TYPES = ["SWITCH", "BUTTON", "CLOCK", "INPUT_PIN"]
+    OUTPUT_TYPES = ["LED", "SEVEN_SEGMENT", "HEX_DISPLAY", "OUTPUT_PIN"]
+
     def __init__(self, circuit):
         self.circuit = circuit
         self.module_name = "generated_circuit"
@@ -43,13 +47,13 @@ class VerilogGenerator:
         
         # Giriş portları (Switch, Button, Clock)
         for comp in self.circuit.components:
-            if comp.type in ["SWITCH", "BUTTON", "CLOCK"]:
+            if comp.type in self.INPUT_TYPES:
                 for pin in comp.output_pins:
                     ports.append(f"input {self.sanitize_name(comp.name)}_{pin.name}")
                     
         # Çıkış portları (LED, Display)
         for comp in self.circuit.components:
-            if comp.type in ["LED", "SEVEN_SEGMENT", "HEX_DISPLAY"]:
+            if comp.type in self.OUTPUT_TYPES:
                 for pin in comp.input_pins:
                     ports.append(f"output {self.sanitize_name(comp.name)}_{pin.name}")
                     
@@ -57,15 +61,9 @@ class VerilogGenerator:
         
     def generate_port_declarations(self):
         """Port tanımlamalarını üret"""
-        decls = []
-        
-        # Çıkış portları için wire/reg tanımlamaları
-        for comp in self.circuit.components:
-            if comp.type in ["LED", "SEVEN_SEGMENT", "HEX_DISPLAY"]:
-                for pin in comp.input_pins:
-                    decls.append(f"wire {self.sanitize_name(comp.name)}_{pin.name};")
-                    
-        return decls
+        # Ports are fully declared in the ANSI header above; declaring them
+        # again as wires is an error ("already been declared").
+        return []
         
     def generate_internal_signals(self):
         """İç sinyalleri üret"""
@@ -74,7 +72,7 @@ class VerilogGenerator:
         
         # Her bileşenin çıkış pinleri için sinyal
         for comp in self.circuit.components:
-            if comp.type not in ["SWITCH", "BUTTON", "CLOCK", "LED", "SEVEN_SEGMENT"]:
+            if comp.type not in self.INPUT_TYPES + self.OUTPUT_TYPES:
                 for pin in comp.output_pins:
                     signal_name = f"{self.sanitize_name(comp.name)}_{pin.name}"
                     signals.append(f"wire {signal_name};")
@@ -87,8 +85,17 @@ class VerilogGenerator:
         instances.append("// Component instances")
         
         for comp in self.circuit.components:
-            if comp.type in ["SWITCH", "BUTTON", "CLOCK", "LED"]:
-                continue  # I/O bileşenleri için instance oluşturma
+            if comp.type in self.INPUT_TYPES:
+                continue  # inputs are ports, nothing to generate
+            if comp.type in self.OUTPUT_TYPES:
+                # drive the output port from whatever is wired to it (0 if nothing)
+                for pin in comp.input_pins:
+                    port = self.get_pin_signal_name(pin)
+                    source = self.get_pin_signal(pin)
+                    if source == port:
+                        source = "1'b0"
+                    instances.append(f"assign {port} = {source};")
+                continue
                 
             instances.append("")
             instances.append(f"// {comp.name}")
