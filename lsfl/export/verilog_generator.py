@@ -2,6 +2,11 @@
 Verilog kod üreteci - devreyi Verilog koduna çevirir
 """
 
+import re
+
+# Helper wires/regs that several component templates declare with the same name
+LOCAL_NAMES = re.compile(r"\b(sel|a|b|sum|diff|product|count_reg|reg_data|shift_data|updown_count)\b")
+
 
 class VerilogGenerator:
     # Components that become module ports instead of logic
@@ -49,13 +54,13 @@ class VerilogGenerator:
         for comp in self.circuit.components:
             if comp.type in self.INPUT_TYPES:
                 for pin in comp.output_pins:
-                    ports.append(f"input {self.sanitize_name(comp.name)}_{pin.name}")
+                    ports.append(f"input {self.get_pin_signal_name(pin)}")
                     
         # Çıkış portları (LED, Display)
         for comp in self.circuit.components:
             if comp.type in self.OUTPUT_TYPES:
                 for pin in comp.input_pins:
-                    ports.append(f"output {self.sanitize_name(comp.name)}_{pin.name}")
+                    ports.append(f"output {self.get_pin_signal_name(pin)}")
                     
         return ports if ports else ["// No external ports"]
         
@@ -74,7 +79,7 @@ class VerilogGenerator:
         for comp in self.circuit.components:
             if comp.type not in self.INPUT_TYPES + self.OUTPUT_TYPES:
                 for pin in comp.output_pins:
-                    signal_name = f"{self.sanitize_name(comp.name)}_{pin.name}"
+                    signal_name = self.get_pin_signal_name(pin)
                     signals.append(f"wire {signal_name};")
                     
         return signals
@@ -534,7 +539,10 @@ class VerilogGenerator:
         else:
             code.append(f"// Component {comp.type} not yet implemented in Verilog generator")
             
-        return code
+        # Two adders (or an adder and a subtractor, both use "a") would declare the same
+        # names in one module; prefix them with the component name.
+        prefix = self.sanitize_name(comp.name)
+        return [LOCAL_NAMES.sub(lambda m: f"{prefix}_{m.group(1)}", line) for line in code]
         
     def get_pin_signal(self, pin):
         """Pin için sinyal adını al"""
@@ -550,13 +558,13 @@ class VerilogGenerator:
         """Pin için sinyal adı oluştur"""
         comp = pin.component
         
-        # I/O bileşenleri için özel isimler
-        if comp.type in ["SWITCH", "BUTTON", "CLOCK"]:
-            return f"{self.sanitize_name(comp.name)}_{pin.name}"
-        elif comp.type in ["LED", "SEVEN_SEGMENT"]:
-            return f"{self.sanitize_name(comp.name)}_{pin.name}"
-        else:
-            return f"{self.sanitize_name(comp.name)}_{pin.name}"
+        return f"{self.sanitize_name(comp.name)}_{self.sanitize_pin(pin.name)}"
+
+    def sanitize_pin(self, name):
+        """Pin names like Q', A>B, A=B are not valid in identifiers; spell the symbols out."""
+        for symbol, word in (("'", "_n"), (">", "gt"), ("<", "lt"), ("=", "eq")):
+            name = name.replace(symbol, word)
+        return "".join(c if c.isalnum() or c == "_" else "_" for c in name)
             
     def sanitize_name(self, name):
         """İsmi Verilog için temizle"""
