@@ -16,28 +16,10 @@ class Circuit:
         self.is_running = False
         self.simulation_timer = None
         self.filename = None
-        # Otomatik isimlendirme için sayaçlar
-        self.component_counters = {}
-        # ID Recycling: Boşalan ID'leri geri kazanma (Min-Heap benzeri)
-        self.available_ids = {}  # {component_type: set of available IDs}
-        # ID Recycling: Boşalan ID'leri geri kazanma (Min-Heap benzeri)
-        self.available_ids = {}  # {component_type: set of available IDs}
         
     def add_component(self, component):
         """Bileşen ekle ve otomatik isim ver - ID Recycling ile"""
         comp_type = component.type
-        
-        # ID Recycling: Önce boşta ID var mı kontrol et
-        if comp_type in self.available_ids and self.available_ids[comp_type]:
-            # En küçük boşta ID'yi al (sorted set'ten min)
-            component_id = min(self.available_ids[comp_type])
-            self.available_ids[comp_type].remove(component_id)
-        else:
-            # Boşta ID yok, sayaç artır
-            if comp_type not in self.component_counters:
-                self.component_counters[comp_type] = 0
-            self.component_counters[comp_type] += 1
-            component_id = self.component_counters[comp_type]
         
         # Kısa isim formatı
         type_prefix = {
@@ -55,6 +37,14 @@ class Circuit:
             'XNOR': 'XNOR',
         }.get(comp_type, comp_type[:3].upper())
         
+        # ID Recycling: the smallest number not used yet. Looking at the names in the
+        # circuit (not a per-type counter) also covers types that share a prefix
+        # (MUX_2TO1 and MUX_4TO1 are both "MUX"), loaded files and a cleared circuit.
+        taken = {c.name for c in self.components}
+        component_id = 1
+        while f"{type_prefix}_{component_id}" in taken:
+            component_id += 1
+        
         component.name = f"{type_prefix}_{component_id}"
         self.components.append(component)
         
@@ -65,19 +55,7 @@ class Circuit:
                 for pin in component.input_pins + component.output_pins:
                     wire.disconnect_pin(pin)
             
-            # ID Recycling: Silinen bileşenin ID'sini havuza geri koy
-            comp_type = component.type
-            # İsimden ID'yi çıkar (örn: "AND_5" -> 5)
-            try:
-                component_id = int(component.name.split('_')[-1])
-                if comp_type not in self.available_ids:
-                    self.available_ids[comp_type] = set()
-                self.available_ids[comp_type].add(component_id)
-            except (ValueError, IndexError):
-                # İsim formatı standart değilse atla
-                pass
-            
-            # Bileşeni kaldır
+            # Bileşeni kaldır (its number is free again for add_component)
             self.components.remove(component)
             
     def add_wire(self, from_pin, to_pin):
